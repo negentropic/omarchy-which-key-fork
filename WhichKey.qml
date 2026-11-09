@@ -126,17 +126,18 @@ Item {
   }
 
   function rebuildModel() {
-    viewModel = Model.buildRows(bindings, modifierMask)
+    viewModel = Model.buildRows(bindings, modifierMask, { maxRowsPerColumn: 16 })
   }
 
   function maybeReveal() {
     opened = revealDue && superHeld && config.maskEnabled(modifierMask) && bindingsReady
-      && viewModel && viewModel.rows && viewModel.rows.length > 0
+      && viewModel && ((viewModel.rows && viewModel.rows.length > 0)
+        || (viewModel.branches && viewModel.branches.length > 0))
   }
 
   function requestBindings(requestGeneration) {
     if (!sourceDir) {
-      console.warn("huacnlee.which-key: plugin source directory is unavailable")
+      console.warn("negentropic.which-key: plugin source directory is unavailable")
       return
     }
 
@@ -160,7 +161,7 @@ Item {
 
     var payload = String(output || "")
     if (Model.isPayloadTooLarge(payload)) {
-      console.warn("huacnlee.which-key: binding data is too large; ignoring it")
+      console.warn("negentropic.which-key: binding data is too large; ignoring it")
       return
     }
 
@@ -168,7 +169,7 @@ Item {
     try {
       parsed = JSON.parse(payload)
     } catch (error) {
-      console.warn("huacnlee.which-key: invalid binding data:", error)
+      console.warn("negentropic.which-key: invalid binding data:", error)
       return
     }
     if (!Array.isArray(parsed)) return
@@ -206,7 +207,7 @@ Item {
         root.acceptBindingOutput(completedGeneration, bindingStdout.text)
       else if (Model.isCurrentGeneration(root.generation, completedGeneration)
           && root.superHeld && nextGeneration === 0)
-        console.warn("huacnlee.which-key: binding load failed:",
+        console.warn("negentropic.which-key: binding load failed:",
           Model.clampMessage(bindingStderr.text))
 
       if (nextGeneration !== 0)
@@ -215,7 +216,7 @@ Item {
   }
 
   IpcHandler {
-    target: "huacnlee.which-key"
+    target: "negentropic.which-key"
 
     // Only modifier changes arrive here. Running a shortcut leaves the guide
     // up so a held Super can drive several shortcuts before it closes.
@@ -237,7 +238,7 @@ Item {
       anchors { top: true; right: true; bottom: true; left: true }
       color: "transparent"
       exclusionMode: ExclusionMode.Ignore
-      WlrLayershell.namespace: "huacnlee-which-key"
+      WlrLayershell.namespace: "negentropic-which-key"
       WlrLayershell.layer: WlrLayer.Overlay
       WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 

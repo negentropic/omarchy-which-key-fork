@@ -84,3 +84,10 @@ assert.strictEqual(Model.clampMessage("x".repeat(Model.MAX_MESSAGE_CHARS)).lengt
 assert.strictEqual(Model.clampMessage("x".repeat(Model.MAX_MESSAGE_CHARS + 500)).length, Model.MAX_MESSAGE_CHARS)
 
 console.log("model tests passed")
+
+// Branch hints: modifiers that can still be added, with how many shortcuts lie beyond each.
+const superBranches = Model.buildRows(bindings, 64).branches
+assert.deepStrictEqual(Array.from(superBranches, b => b.label + ":" + b.count), ["Shift:4", "Ctrl:1", "Alt:1"])
+const shiftBranches = Model.buildRows(bindings, 65).branches
+assert.deepStrictEqual(Array.from(shiftBranches, b => b.label), [])
+console.log("branch hints ok")

@@ -9,13 +9,17 @@ BorderSurface {
   required property var viewModel
   required property real availableWidth
   readonly property var visibleRows: viewModel && viewModel.rows
-    ? viewModel.rows.slice(0, 20) : []
+    ? viewModel.rows : []
+  readonly property var visibleColumns: viewModel && viewModel.columns
+    ? viewModel.columns : []
+  readonly property var branches: viewModel && viewModel.branches
+    ? viewModel.branches : []
   readonly property int pad: Style.space(10)
   readonly property int rowGap: Style.space(4)
   readonly property int keyWidth: Math.ceil(keyMetrics.advanceWidth)
 
   width: Math.min(content.implicitWidth + borderLeft + pad * 2 + borderRight,
-                  availableWidth, Style.space(380))
+                  availableWidth)
   height: content.implicitHeight + borderTop + pad * 2 + borderBottom
   color: Color.popups.background
   borderSpec: Border.surfaceSpec("popups", "border", Color.popups.border,
@@ -55,11 +59,20 @@ BorderSurface {
       color: Color.popups.border
     }
 
-    ColumnLayout {
-      spacing: card.rowGap
+    RowLayout {
+      spacing: Style.space(16)
 
       Repeater {
-        model: card.visibleRows
+        model: card.visibleColumns
+
+        delegate: ColumnLayout {
+          id: column
+          required property var modelData
+          Layout.alignment: Qt.AlignTop
+          spacing: card.rowGap
+
+      Repeater {
+        model: column.modelData
 
         delegate: RowLayout {
           required property var modelData
@@ -86,6 +99,49 @@ BorderSurface {
             font.pixelSize: Style.font.body
             font.weight: Font.Normal
             elide: Text.ElideRight
+          }
+        }
+      }
+        }
+      }
+    }
+
+    // Next steps of the combo: modifiers that can still be added, and how many
+    // shortcuts each one opens up.
+    Rectangle {
+      visible: card.branches.length > 0 && card.visibleRows.length > 0
+      Layout.fillWidth: true
+      Layout.preferredHeight: Math.max(1, Style.space(1))
+      color: Color.popups.border
+    }
+
+    Flow {
+      visible: card.branches.length > 0
+      Layout.fillWidth: true
+      Layout.preferredWidth: card.keyWidth + Style.space(196)
+      spacing: Style.space(6)
+
+      Repeater {
+        model: card.branches
+
+        delegate: Rectangle {
+          required property var modelData
+          width: chipText.implicitWidth + Style.space(12)
+          height: chipText.implicitHeight + Style.space(6)
+          radius: Style.cornerRadius
+          color: "transparent"
+          border.width: Math.max(1, Style.space(1))
+          border.color: Color.accent
+
+          Text {
+            id: chipText
+            anchors.centerIn: parent
+            textFormat: Text.PlainText
+            text: "+ " + modelData.label + "  " + modelData.count
+            color: Color.accent
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            font.bold: true
           }
         }
       }

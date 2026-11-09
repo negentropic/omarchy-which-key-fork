@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "id": "huacnlee.which-key",
+  "id": "negentropic.which-key",
   "name": "Which Key",
-  "version": "0.1.0",
-  "author": "Jason Lee <huacnlee@gmail.com>",
+  "version": "0.2.0",
+  "author": "negentropic",
   "license": "MIT",
-  "description": "A LazyVim which-key-style shortcut guide that automatically reads Omarchy live keybindings and appears when you hold Super",
+  "description": "Personal which-key shortcut guide (forked from huacnlee/omarchy-which-key) that shows live Hyprland keybindings while Super is held",
   "kinds": [
     "overlay",
     "bar-widget"

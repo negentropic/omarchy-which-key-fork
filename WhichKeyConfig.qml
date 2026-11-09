@@ -107,7 +107,7 @@ QtObject {
     onExited: function(exitCode) {
       if (startSerial !== root.writeSerial) return
       if (exitCode !== 0) {
-        console.warn("huacnlee.which-key: settings could not be read:",
+        console.warn("negentropic.which-key: settings could not be read:",
           Model.clampMessage(readStderr.text))
         root.apply("")
         root.error = "Settings file could not be read; defaults are active."
@@ -124,7 +124,7 @@ QtObject {
 
     onExited: function(exitCode) {
       if (exitCode !== 0) {
-        console.warn("huacnlee.which-key: settings could not be saved:",
+        console.warn("negentropic.which-key: settings could not be saved:",
           Model.clampMessage(writeStderr.text))
         root.error = "Settings could not be saved."
       }

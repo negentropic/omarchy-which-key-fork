@@ -1,83 +1,25 @@
-# Omarchy Which Key
+# Which Key (negentropic fork)
 
-Omarchy Which Key brings LazyVim's which-key experience to the desktop. It
-automatically reads the active Omarchy and Hyprland keybindings and shows a
-compact guide at the bottom right of the focused display when you hold Super.
+A personal fork of [huacnlee/omarchy-which-key](https://github.com/huacnlee/omarchy-which-key)
+(MIT, see `LICENSE`). Hold **Super** to see a guide of the live Hyprland
+keybindings for the held modifier combination; add Shift, Ctrl, or Alt to
+narrow it. Release Super to close it.
 
-<img width="250" alt="Omarchy Which-Key" src="preview.png" />
+## Changes from upstream
 
-**If this helps you, please [sponsor me](https://github.com/sponsors/huacnlee).**
+- Shows every shortcut for a combination, laid out in columns of up to 16
+  rows (upstream caps the guide at 20 rows in a single column).
 
-## Requirements
+## Enable
 
-Omarchy 4 with its Quickshell desktop and Hyprland Lua configuration support.
+Lives at `~/.config/omarchy/plugins/negentropic.which-key`. Enable it with
+`omarchy plugin enable negentropic.which-key`, then turn on **Enabled** in the
+Which Key bar widget settings (or run `scripts/enable-integration`), which adds
+a marked block to `~/.config/hypr/bindings.lua` and links
+`~/.local/bin/which-key-trigger`. `scripts/disable-integration` removes both.
 
-## Install
+Bindings without a Hyprland description are omitted.
 
-Add and enable the plugin with Omarchy:
+## Tests
 
-```bash
-omarchy plugin add https://github.com/huacnlee/omarchy-which-key.git --enable
-```
-
-Open the Which Key bar widget settings and turn on **Enabled**. The plugin
-configures its keyboard integration automatically.
-
-## How it works
-
-The plugin reads Hyprland's active keyboard model, layout, variant, and XKB
-options, so remaps such as `altwin:swap_alt_win` still trigger the logical Super
-modifier. It observes modifier state without registering a new shortcut. The
-overlay then runs `hyprctl binds` each time Super is held and
-filters those live results for the active modifier combination. It contains no built-in shortcut
-information, so reloaded system changes appear on next use.
-The full-screen layer has an empty input region and requests no keyboard focus.
-
-## Usage
-
-Press and hold **Super** — the **Command (⌘)** key on an Apple keyboard or the
-**Windows (⊞)** key on a PC keyboard — to show the shortcut guide. Keep holding
-Super and add Shift, Ctrl, or Alt to see shortcuts for that exact key
-combination. Release Super to close the guide.
-
-Running a shortcut leaves the guide open, so one held Super can drive several
-shortcuts in a row. Only releasing Super closes it.
-
-By default, the guide appears after Super is held for 200 ms, so a quick tap
-does not open it. You can change this delay and choose which modifier
-combinations are shown from the Which Key bar widget settings. The guide shows
-up to twenty shortcuts at a time.
-
-## Uninstall
-
-Turn off **Enabled** in the Which Key bar widget settings, then remove the
-plugin with Omarchy:
-
-```bash
-omarchy plugin remove huacnlee.which-key
-```
-
-Disabling removes the plugin's keyboard integration. Other bindings and files
-are left untouched.
-
-## Troubleshooting
-
-If nothing appears, check `hyprctl configerrors` and confirm the plugin is
-enabled with:
-
-```bash
-omarchy plugin list --json | jq '.[] | select(.id == "huacnlee.which-key")'
-```
-
-Bindings without a Hyprland description are intentionally omitted. If the
-keyboard layout or XKB options change, turn **Enabled** off and on again in the
-Which Key settings.
-
-## More projects
-
-- [Disktree](https://huacnlee.github.io/disktree/) — A native disk-space explorer for macOS and Linux. See what fills your disk as a nested treemap, and review every path before removing anything.
-- [Omasend](https://huacnlee.github.io/omasend/) — A native LocalSend client. Share files, folders, screenshots, and text over your local network, with no account or cloud upload.
-- [Omamail](https://huacnlee.github.io/omamail/) — A native email and calendar app with multiple accounts and keyboard navigation. Runs as an Omarchy plugin or a standalone desktop app.
-- [Noop](https://huacnlee.github.io/noop/) — Your own AI team. Claude Code and Codex agents on your own computers do the daily work and only ask when something really needs you.
-- [huacnlee/cargo](https://huacnlee.github.io/cargo/) — A drop-in Cargo fork: every git worktree of a project shares one build directory, which stays under a size limit on its own.
-- [omarchy-mihoro](https://github.com/huacnlee/omarchy-mihoro) — An Omarchy bar panel for Mihoro. Monitor your proxy, switch between Rule, Global, and Direct modes, and manage subscriptions.
+`make test`

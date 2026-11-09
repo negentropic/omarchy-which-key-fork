@@ -1,4 +1,4 @@
-PLUGIN_DIR ?= $(HOME)/.config/omarchy/plugins/huacnlee.which-key
+PLUGIN_DIR ?= $(HOME)/.config/omarchy/plugins/negentropic.which-key
 
 .PHONY: test validate dev
 

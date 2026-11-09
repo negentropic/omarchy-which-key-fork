@@ -145,7 +145,7 @@ OMARCHY_WHICH_KEY_TEST_LOG="$shell_log" \
 OMARCHY_WHICH_KEY_SHELL="$fake_shell" \
 OMARCHY_WHICH_KEY_TEST_LOG="$shell_log" \
   "$repo_root/scripts/which-key-trigger" state 2 65
-assert_equal $'huacnlee.which-key state 1 64\nhuacnlee.which-key state 2 65' \
+assert_equal $'negentropic.which-key state 1 64\nnegentropic.which-key state 2 65' \
   "$(<"$shell_log")" "trigger should forward exact IPC arguments"
 
 for invalid_call in 'invalid value' 'dismiss 3' ''; do

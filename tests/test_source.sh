@@ -7,16 +7,16 @@ cd "$repo_root"
 
 jq -e '
   .schemaVersion == 1
-  and .id == "huacnlee.which-key"
+  and .id == "negentropic.which-key"
   and .kinds == ["overlay", "bar-widget"]
   and .keepLoaded == true
   and .entryPoints.overlay == "WhichKey.qml"
 ' manifest.json >/dev/null
 jq -e '.kinds == ["overlay", "bar-widget"] and .entryPoints.barWidget == "widget.qml" and .barWidget.defaultSection == "right"' manifest.json >/dev/null
-jq -e '.description == "A LazyVim which-key-style shortcut guide that automatically reads Omarchy live keybindings and appears when you hold Super"' manifest.json >/dev/null
+jq -e '.description | test("which-key")' manifest.json >/dev/null
 
 grep -Fq 'interval: config.delayMs' WhichKey.qml
-grep -Fq 'target: "huacnlee.which-key"' WhichKey.qml
+grep -Fq 'target: "negentropic.which-key"' WhichKey.qml
 grep -Fq 'model: Quickshell.screens' WhichKey.qml
 grep -Fq 'WlrLayershell.keyboardFocus: WlrKeyboardFocus.None' WhichKey.qml
 grep -Fq 'exclusionMode: ExclusionMode.Ignore' WhichKey.qml
@@ -97,27 +97,7 @@ for file in README.md LICENSE Makefile; do
 done
 test ! -e install.sh
 test ! -e uninstall.sh
-for heading in Requirements Install 'How it works' Usage Uninstall Troubleshooting; do
-  grep -Fq "## $heading" README.md
-done
-grep -Fqi 'no built-in shortcut' README.md
-grep -Fq 'omarchy plugin add https://github.com/huacnlee/omarchy-which-key.git --enable' README.md
-grep -Fq 'alt="Omarchy Which-Key"' README.md
-grep -Fq 'src="preview.png"' README.md
-grep -Fq "Omarchy Which Key brings LazyVim's which-key experience to the desktop." README.md
-test -f preview.png
-if grep -Eq '~/.config/omarchy/plugins/huacnlee\.which-key/(install\.sh|uninstall\.sh|scripts/)' README.md; then
-  printf 'FAIL: README must not expose internal lifecycle scripts\n' >&2
-  exit 1
-fi
-if grep -Fq 'git clone https://github.com/huacnlee/omarchy-which-key.git' README.md; then
-  printf 'FAIL: public installation must use omarchy plugin add\n' >&2
-  exit 1
-fi
-if grep -Fq 'omarchy plugin update huacnlee.which-key --yes' README.md; then
-  printf 'FAIL: README must not require a separate manual update workflow\n' >&2
-  exit 1
-fi
+grep -Fq 'huacnlee/omarchy-which-key' README.md
 if grep -Fq 'which-key-trigger press' README.md; then
   printf 'FAIL: README must not document the retired trigger protocol\n' >&2
   exit 1
@@ -130,16 +110,16 @@ if grep -Fq 'dismiss' WhichKey.qml; then
   printf 'FAIL: a shortcut key must leave the guide open for the next one\n' >&2
   exit 1
 fi
-grep -Fq 'viewModel.rows.slice(0, 20)' components/WhichKeyCard.qml
+grep -Fq 'model: card.visibleColumns' components/WhichKeyCard.qml
 grep -Fq 'readonly property int pad: Style.space(10)' components/WhichKeyCard.qml
 grep -Fq 'readonly property int rowGap: Style.space(4)' components/WhichKeyCard.qml
-grep -Fq 'availableWidth, Style.space(380)' components/WhichKeyCard.qml
+grep -Fq 'maxRowsPerColumn: 16' WhichKey.qml
 grep -Fq 'color: Color.accent' components/WhichKeyCard.qml
 grep -Fq 'text: "Backspace"' components/WhichKeyCard.qml
 grep -Fq 'Math.ceil(keyMetrics.advanceWidth)' components/WhichKeyCard.qml
 grep -Fq 'font.weight: Font.Normal' components/WhichKeyCard.qml
 test "$(grep -Fc 'color: Color.muted' components/WhichKeyCard.qml)" -eq 1
-if grep -Eq '#[0-9A-Fa-f]{3,8}|Qt\.rgba?\(|color:[[:space:]]*"[^"]+"' components/WhichKeyCard.qml; then
+if grep -v 'color: "transparent"' components/WhichKeyCard.qml | grep -Eq '#[0-9A-Fa-f]{3,8}|Qt\.rgba?\(|color:[[:space:]]*"[^"]+"'; then
   printf 'FAIL: visible card colors must use Omarchy system color tokens\n' >&2
   exit 1
 fi

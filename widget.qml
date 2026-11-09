@@ -11,7 +11,7 @@ import "WhichKeyModel.js" as Model
 BarWidget {
   id: root
 
-  moduleName: "huacnlee.which-key"
+  moduleName: "negentropic.which-key"
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
 
@@ -72,7 +72,7 @@ BarWidget {
   Component.onCompleted: refreshStatus()
 
   IpcHandler {
-    target: "huacnlee.which-key.settings"
+    target: "negentropic.which-key.settings"
     function open(): void { root.open() }
     function close(): void { root.close() }
     function show(): void { root.open() }

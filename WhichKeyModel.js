@@ -212,8 +212,37 @@ function buildRows(bindings, modifierMask, options) {
   return {
     title: modifierTitle(numericMask),
     rows: rows,
-    columns: chunkRows(rows, maximum)
+    columns: chunkRows(rows, maximum),
+    branches: buildBranches(source, numericMask)
   }
+}
+
+var BRANCH_LABELS = { 1: "Shift", 4: "Ctrl", 8: "Alt" }
+
+// The modifiers that can still be added to the held chord, each with how many
+// described shortcuts lie somewhere beyond it, so the guide can hint at the
+// next step of a combo before it is pressed.
+function buildBranches(source, mask) {
+  var branches = []
+  var order = [1, 4, 8]
+  for (var orderIndex = 0; orderIndex < order.length; orderIndex++) {
+    var bit = order[orderIndex]
+    if ((mask & bit) !== 0) continue
+
+    var count = 0
+    for (var index = 0; index < source.length; index++) {
+      var binding = source[index]
+      if (!isRecord(binding)) continue
+      var modmask = Number(binding.modmask)
+      if ((modmask & mask) !== mask || (modmask & bit) === 0) continue
+      if (!String(binding.description || "").trim()) continue
+      var key = triggerKey(binding.key)
+      if (!key || !keyLabel(key, binding.keycode)) continue
+      count++
+    }
+    if (count > 0) branches.push({ bit: bit, label: BRANCH_LABELS[bit], count: count })
+  }
+  return branches
 }
 
 function isCurrentGeneration(expected, received) {
