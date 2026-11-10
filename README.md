@@ -25,6 +25,14 @@ narrow it. Release Super to close it.
   `- =  Expand/shrink window left`, `Vol ±  Volume up/down`), and keys bound
   to the very same action share one too (`Q or W  Close window`). Turn off
   **Compact rows** in the widget settings to list every key.
+- A key bound to several actions (Hyprland runs them all) is flagged with
+  `×2`, which catches a binding that shadows another by accident.
+- Only the active submap's bindings are shown.
+- The bindings are cached and refreshed when Hyprland reloads its config, so
+  holding Super spawns no helper. The card scales down to fit small screens.
+- The hook follows the XKB keymap: when the layout or `kb_options` change, it
+  is rewritten on the next config reload or shell start. A modifier whose
+  release was missed is dropped after about 30 seconds without any key event.
 
 ## Enable
 
