@@ -26,7 +26,9 @@ Item {
   property bool revealDue: false
   property bool nonSuperDue: false
   property int pendingLoadGeneration: 0
-  property int lastEventSequence: 0
+  // Event time in ms times 1000 plus a per-event count (see install-bindings).
+  // It passes 2^31 within an hour of boot, so it is a double, exact to 2^53.
+  property real lastEventSequence: 0
 
   // Any of Super, Shift, Ctrl or Alt starts a chord the guide can describe.
   readonly property int modifierBits: 64 | 1 | 4 | 8
@@ -111,6 +113,7 @@ Item {
     var nextSequence = Number(sequence)
     var nextMask = Number(mask)
     if (!isFinite(nextSequence) || !isFinite(nextMask)
+        || Math.floor(nextSequence) !== nextSequence
         || nextSequence <= lastEventSequence) return
     lastEventSequence = nextSequence
 
@@ -233,8 +236,9 @@ Item {
     target: "negentropic.which-key"
 
     // Only modifier changes arrive here. Running a shortcut leaves the guide
-    // up so a held Super can drive several shortcuts before it closes.
-    function state(sequence: int, mask: int): void {
+    // up so a held Super can drive several shortcuts before it closes. The
+    // sequence is a string because it outgrows an IPC int (2^31).
+    function state(sequence: string, mask: int): void {
       root.acceptState(sequence, mask)
     }
   }

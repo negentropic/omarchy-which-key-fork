@@ -112,11 +112,11 @@ hl = {
 }
 dofile(os.getenv("OMARCHY_TEST_CONFIG"))
 local function key(code, state, mask)
-  local time = #commands + 1
-  callback(code, time, state)
-  local expected = "which-key-trigger state " .. time .. " " .. mask
-  assert(commands[time] == expected,
-    "expected " .. expected .. ", got " .. tostring(commands[time]))
+  local count = #commands + 1
+  callback(code, count, state)
+  local expected = "which-key-trigger state " .. (count * 1000 + count) .. " " .. mask
+  assert(commands[count] == expected,
+    "expected " .. expected .. ", got " .. tostring(commands[count]))
 end
 key(133, 1, 64)
 key(50, 1, 65) -- Shift + Lock ignores Lock.
@@ -149,9 +149,16 @@ hl = {
 }
 dofile(os.getenv("OMARCHY_TEST_CONFIG"))
 callback(203, 1, 1)
-assert(command == "which-key-trigger state 1 69")
+assert(command == "which-key-trigger state 1001 69")
 callback(203, 2, 0)
-assert(command == "which-key-trigger state 2 0")
+assert(command == "which-key-trigger state 2002 0")
+
+-- Events in the same millisecond keep their order through the count, and a
+-- time past 2^31 ms (24.9 days of uptime) prints as plain digits.
+callback(203, 2, 1)
+assert(command == "which-key-trigger state 2003 69", command)
+callback(203, 3000000000, 0)
+assert(command == "which-key-trigger state 3000000000004 0", command)
 LUA
 
 printf 'test_install_compound_modmap: ok\n'

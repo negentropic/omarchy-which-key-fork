@@ -102,7 +102,8 @@ if grep -Fq 'which-key-trigger press' README.md; then
   printf 'FAIL: README must not document the retired trigger protocol\n' >&2
   exit 1
 fi
-grep -Fq 'function state(sequence: int, mask: int)' WhichKey.qml
+grep -Fq 'function state(sequence: string, mask: int)' WhichKey.qml
+grep -Fq 'property real lastEventSequence' WhichKey.qml
 grep -Fq 'nextSequence <= lastEventSequence' WhichKey.qml
 # Running a shortcut must not close the guide: only releasing Super does, so a
 # held Super can drive one shortcut after another.
