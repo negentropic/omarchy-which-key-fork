@@ -609,8 +609,41 @@ function collapsePairs(rows) {
   return result
 }
 
+// Different keys bound to the very same action, such as Omarchy's Super+Q
+// and Super+W both closing the window, are one row whose label lists each
+// key as an alternative ("Q / W"). Only rows no earlier rule combined take
+// part, so a label never grows into a mix of sets and alternatives.
+function collapseAliases(rows) {
+  var sorted = rows.slice().sort(compareRows)
+  var result = []
+  var byIdentity = {}
+  for (var index = 0; index < sorted.length; index++) {
+    var row = sorted[index]
+    if (row.keys) {
+      result.push(row)
+      continue
+    }
+    var identity = row.description + "\u001f" + row.submap
+    var members = byIdentity[identity]
+    if (!members) {
+      members = [row]
+      byIdentity[identity] = members
+      result.push(members)
+    } else {
+      members.push(row)
+    }
+  }
+
+  return result.map(function(entry) {
+    if (!Array.isArray(entry)) return entry
+    if (entry.length === 1) return entry[0]
+    var labels = entry.map(function(member) { return member.label })
+    return combinedRow(entry, labels.join(" / "), entry[0].description)
+  })
+}
+
 function compactRows(rows) {
-  return collapsePairs(collapseArrows(collapseNumbers(rows)))
+  return collapseAliases(collapsePairs(collapseArrows(collapseNumbers(rows))))
 }
 
 // Hyprland reports a Lua press/release pair as two plain bindings, so a pair

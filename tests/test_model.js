@@ -138,6 +138,24 @@ const ordered = Model.buildRows([
 assert.deepStrictEqual(Array.from(ordered.rows, row => row.label), ["Z", "1", "0", "←", "↓", "Scroll ↓"])
 assert.strictEqual(ordered.widestLabel, "Scroll ↓")
 
+// Keys bound to the same action share a row; other submaps and the
+// non-compact view keep them apart.
+const aliasSource = [
+  { modmask: 64, key: "W", description: "Close window" },
+  { modmask: 64, key: "Q", description: "Close window" },
+  { modmask: 64, key: "RETURN", description: "Browser" },
+  { modmask: 64, key: "B", description: "Browser" },
+  { modmask: 64, key: "E", description: "Browser", submap: "apps" },
+  { modmask: 64, key: "T", description: "Terminal" }
+]
+assert.deepStrictEqual(Array.from(Model.buildRows(aliasSource, 64, { categorize: false }).rows, row => row.label + " | " + row.description), [
+  "B / Enter | Browser",
+  "E | Browser",
+  "Q / W | Close window",
+  "T | Terminal"
+])
+assert.strictEqual(Model.buildRows(aliasSource, 64, { compact: false }).rows.length, 6)
+
 // Categories: rows are sectioned by what their description says they do.
 assert.strictEqual(Model.rowCategory({ description: "Terminal" }), "Apps")
 assert.strictEqual(Model.rowCategory({ description: "Close window" }), "Windows")
