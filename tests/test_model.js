@@ -58,7 +58,8 @@ assert.deepStrictEqual(
   Array.from(Model.buildRows(many, 64, { maxRowsPerColumn: 16, categorize: false }).columns, column => column.length),
   [9, 8])
 
-// Chained actions on one key merge; press/release pairs show the press only.
+// Chained actions on one key merge; a press/release pair worded as one reads
+// as one ("Start/stop"), and any other release half is dropped.
 const merged = Model.buildRows([
   { modmask: 8, key: "TAB", description: "Focus on next window" },
   { modmask: 8, key: "TAB", description: "Reveal active window on top" },
@@ -70,8 +71,12 @@ const merged = Model.buildRows([
 assert.deepStrictEqual(Array.from(merged.rows, row => [row.label, row.description, row.duplicate]), [
   ["`", "Quake · Stage", true],
   ["Tab", "Focus on next window · Reveal active window on top", true],
-  ["F9", "Start dictation", false]
+  ["F9", "Start/stop dictation", false]
 ])
+assert.deepStrictEqual(Array.from(Model.buildRows([
+  { modmask: 8, key: "F10", description: "Record" },
+  { modmask: 8, key: "F10", description: "Save recording", release: true }
+], 8).rows, row => [row.description, row.duplicate]), [["Record", false]])
 
 // Compact rows: numbers, arrows and opposite pairs collapse; the rest is untouched.
 const compactSource = []
@@ -205,6 +210,8 @@ assert.strictEqual(Model.buildRows(oneColumn, 64, { maxRowsPerColumn: 16, compac
 for (const name of ["PowerPoint", "Social media", "Spotify", "Windows VM"])
   assert.strictEqual(Model.rowCategory({ description: name }), "Apps", name)
 assert.strictEqual(Model.rowCategory({ description: "Display settings" }), "System")
+assert.strictEqual(Model.rowCategory({ description: "Close all windows" }), "Windows")
+assert.strictEqual(Model.rowCategory({ description: "Switch media source" }), "Media & devices")
 assert.strictEqual(Model.rowCategory({ description: "Next/previous track" }), "Media & devices")
 assert.strictEqual(Model.rowCategory({ description: "Toggle single-window square aspect" }), "Windows")
 

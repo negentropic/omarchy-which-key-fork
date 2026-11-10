@@ -264,8 +264,8 @@ var CATEGORY_RULES = [
   { category: "Workspaces", pattern: /workspace/i },
   { category: "Displays", pattern: /monitor|laptop display|display mirroring|\bzoom\b/i },
   { category: "Capture", pattern: /screenshot|screen ?record|colou?r picker|\bocr\b|capture|webcam|transcode|^share$/i },
-  { category: "Windows", pattern: /\bwindow\b|full ?screen|full width|scratchpad|float|pseudo|gaps|transparency|\bsplit\b|group|quake|aspect|minimi[sz]e|^stage$/i },
-  { category: "Media & devices", pattern: /volume|\bmute\b|\btracks?\b|^play$|^pause$|brightness|backlight|touchpad|eject|audio|microphone|dictation/i },
+  { category: "Windows", pattern: /\bwindow\b|\ball windows\b|full ?screen|full width|scratchpad|float|pseudo|gaps|transparency|\bsplit\b|group|quake|aspect|minimi[sz]e|^stage$/i },
+  { category: "Media & devices", pattern: /volume|\bmute\b|\btracks?\b|^play$|^pause$|brightness|backlight|touchpad|eject|audio|microphone|dictation|\bmedia (source|player|output)\b/i },
   { category: "Clipboard", pattern: /\b(copy|paste|cut|select all)\b|clipboard/i },
   { category: "System", pattern: /menu|\block|\bpower\b|idle|battery|\btime\b|clock|weather|reminder|theme|background|\bbar\b|keybindings|input language|emoji|hardware|system/i }
 ]
@@ -361,8 +361,10 @@ function chunkRows(rows, maximum) {
 
 // One key can carry several bindings: a press/release pair (push-to-talk), or
 // two actions chained on the same chord (focus, then raise). Each key is shown
-// once; release halves are dropped when a press exists and the remaining
-// descriptions are joined. `duplicate` marks a key with several press actions.
+// once. A press/release pair worded as one ("Start dictation" / "Stop
+// dictation") reads as "Start/stop dictation"; any other release half is
+// dropped when a press exists, and the remaining descriptions are joined.
+// `duplicate` marks a key with several press actions.
 function mergeRows(rows) {
   var merged = []
   var byIdentity = {}
@@ -383,10 +385,12 @@ function mergeRows(rows) {
   for (var mergedIndex = 0; mergedIndex < merged.length; mergedIndex++) {
     var current = merged[mergedIndex]
     var descriptions = current.presses.length > 0 ? current.presses : current.releases
+    var held = current.presses.length === 1 && current.releases.length === 1
+      ? pairedWording(current.presses[0], current.releases[0]) : null
     var output = {}
     for (var field in current.row) output[field] = current.row[field]
-    output.description = joinDescriptions(descriptions)
-    output.duplicate = descriptions.length > 1
+    output.description = held || joinDescriptions(descriptions)
+    output.duplicate = !held && descriptions.length > 1
     output.release = current.presses.length === 0
     result.push(output)
   }
@@ -646,16 +650,22 @@ function compactRows(rows) {
   return collapseAliases(collapsePairs(collapseArrows(collapseNumbers(rows))))
 }
 
-// Hyprland reports a Lua press/release pair as two plain bindings, so a pair
-// such as "Start dictation" / "Stop dictation" is recognised by its wording:
-// descriptions that differ only in their first word become "Start/stop
-// dictation". Anything else is listed in full.
+// Two descriptions that differ only in their first word, such as "Start
+// dictation" and "Stop dictation", read as one: "Start/stop dictation".
+// Returns null for any other pair.
+function pairedWording(first, second) {
+  var a = /^(\S+)\s+(.+)$/.exec(first)
+  var b = /^(\S+)\s+(.+)$/.exec(second)
+  return a && b && a[2] === b[2] ? a[1] + "/" + b[1].toLowerCase() + " " + a[2] : null
+}
+
+// Two press actions on one key worded as a pair (an older Hyprland that
+// reported press/release halves without a release flag) are joined the same
+// way. Anything else is listed in full.
 function joinDescriptions(descriptions) {
   if (descriptions.length === 2) {
-    var first = /^(\S+)\s+(.+)$/.exec(descriptions[0])
-    var second = /^(\S+)\s+(.+)$/.exec(descriptions[1])
-    if (first && second && first[2] === second[2])
-      return first[1] + "/" + second[1].toLowerCase() + " " + first[2]
+    var paired = pairedWording(descriptions[0], descriptions[1])
+    if (paired) return paired
   }
   return descriptions.join(" · ")
 }

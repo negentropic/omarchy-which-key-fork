@@ -38,6 +38,21 @@ jq -e '[.[] | select(.modmask == 64 and .key == "B")] | length == 2' <<<"$json" 
 jq -e 'any(.[]; .submap == "resize")' <<<"$json" >/dev/null
 jq -e 'any(.[]; .key == "mouse:272" and .arg == "")' <<<"$json" >/dev/null
 
+# Flags come from the record's opening line, as current Hyprland prints them;
+# a record that only carries flags there must not inherit any from the last.
+jq -e '[.[] | select(.release)] | length == 1 and .[0].key == "W"' <<<"$json" >/dev/null
+jq -e '[.[] | select(.repeat)] | length == 1 and .[0].key == "code:20"' <<<"$json" >/dev/null
+
+# Older output spelled the flags out as fields; those still count.
+legacy_fixture="$test_root/legacy-binds.txt"
+printf 'bind\n\tmodmask: 8\n\tsubmap: \n\tkey: F9\n\tkeycode: 0\n\tdescription: Stop\n\tdispatcher: exec\n\targ: x\n\trelease: true\n\trepeat: false\n' >"$legacy_fixture"
+legacy="$(
+  OMARCHY_WHICH_KEY_HYPRCTL="$fake_hyprctl" \
+  OMARCHY_WHICH_KEY_FIXTURE="$legacy_fixture" \
+    "$repo_root/scripts/which-key-bindings"
+)"
+jq -e '.[0].release == true and .[0].repeat == false' <<<"$legacy" >/dev/null
+
 big_fixture="$test_root/big-binds.txt"
 for index in $(seq 1 3000); do
   printf 'bind\n\tmodmask: 64\n\tsubmap: \n\tkey: F%s\n\tkeycode: 0\n\tdescription: Bind %s\n\tdispatcher: exec\n\targ: true\n\trelease: false\n\trepeat: false\n' "$index" "$index"

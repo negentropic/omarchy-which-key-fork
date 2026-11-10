@@ -56,10 +56,17 @@ awk -v max_binds="$max_binds" -v truncated="$truncated" '
       field["release"], field["repeat"], field["submap"]
   }
 
+  # Each record opens with its kind and flag letters, e.g. `bindrnd` or
+  # `bindled`: r fires on release, e repeats while held. The flags live only
+  # here; a `release:` or `repeat:` line, which older output carried, still
+  # overrides them below.
   /^bind/ {
     emit()
     if (full) exit
     delete field
+    flags = substr($1, 5)
+    field["release"] = index(flags, "r") ? "true" : "false"
+    field["repeat"] = index(flags, "e") ? "true" : "false"
     seen = 1
     next
   }
