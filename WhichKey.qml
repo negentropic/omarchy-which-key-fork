@@ -260,13 +260,12 @@ Item {
       // held modifier and the next shortcut continue to reach the active app.
       mask: Region {}
 
-      // Dims the rest of the display behind the guide in the theme's scrim
-      // colour, at the strength chosen in settings. The empty input mask
-      // above keeps it click-through.
+      // Dims the rest of the display behind the guide with plain black (the
+      // theme scrim is tinted, e.g. navy), at the strength chosen in
+      // settings. The empty input mask above keeps it click-through.
       Rectangle {
         anchors.fill: parent
-        color: Qt.rgba(Color.menu.scrim.r, Color.menu.scrim.g, Color.menu.scrim.b,
-                       config.dimPercent / 100)
+        color: Qt.rgba(0, 0, 0, config.dimPercent / 100)
       }
 
       WhichKeyCard {
