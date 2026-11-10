@@ -23,7 +23,7 @@ narrow it. Release Super to close it.
 - Compact rows: keys that differ only by a number, direction or opposite word
   share one row (`1–0  Switch to workspace`, `← → ↑ ↓  Focus window`,
   `- =  Expand/shrink window left`, `Vol ±  Volume up/down`), and keys bound
-  to the very same action share one too (`Q / W  Close window`). Turn off
+  to the very same action share one too (`Q or W  Close window`). Turn off
   **Compact rows** in the widget settings to list every key.
 
 ## Enable

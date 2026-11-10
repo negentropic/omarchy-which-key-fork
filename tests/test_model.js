@@ -149,9 +149,9 @@ const aliasSource = [
   { modmask: 64, key: "T", description: "Terminal" }
 ]
 assert.deepStrictEqual(Array.from(Model.buildRows(aliasSource, 64, { categorize: false }).rows, row => row.label + " | " + row.description), [
-  "B / Enter | Browser",
+  "B or Enter | Browser",
   "E | Browser",
-  "Q / W | Close window",
+  "Q or W | Close window",
   "T | Terminal"
 ])
 assert.strictEqual(Model.buildRows(aliasSource, 64, { compact: false }).rows.length, 6)

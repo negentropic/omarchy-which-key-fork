@@ -611,7 +611,7 @@ function collapsePairs(rows) {
 
 // Different keys bound to the very same action, such as Omarchy's Super+Q
 // and Super+W both closing the window, are one row whose label lists each
-// key as an alternative ("Q / W"). Only rows no earlier rule combined take
+// key as an alternative ("Q or W"). Only rows no earlier rule combined take
 // part, so a label never grows into a mix of sets and alternatives.
 function collapseAliases(rows) {
   var sorted = rows.slice().sort(compareRows)
@@ -638,7 +638,7 @@ function collapseAliases(rows) {
     if (!Array.isArray(entry)) return entry
     if (entry.length === 1) return entry[0]
     var labels = entry.map(function(member) { return member.label })
-    return combinedRow(entry, labels.join(" / "), entry[0].description)
+    return combinedRow(entry, labels.join(" or "), entry[0].description)
   })
 }
 
