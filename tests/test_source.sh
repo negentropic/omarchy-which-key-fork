@@ -181,6 +181,8 @@ fi
 grep -Fq 'scripts/which-key-bindings' WhichKey.qml
 # Bindings are cached and refreshed on a config reload, not loaded per chord.
 grep -Fq 'event.name === "configreloaded"' WhichKey.qml
+grep -Fq 'event.name === "submap"' WhichKey.qml
+grep -Fq 'submap: currentSubmap' WhichKey.qml
 
 if grep -Eq 'WlrKeyboardFocus\.(Exclusive|OnDemand)' WhichKey.qml; then
   printf 'FAIL: overlay state must never request keyboard focus\n' >&2

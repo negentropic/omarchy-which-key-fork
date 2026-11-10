@@ -33,6 +33,9 @@ Item {
   property real bindingsLoadedAt: 0
   property bool reloadPending: false
   readonly property int bindingsMaxAgeMs: 60000
+
+  // The active submap, from Hyprland's `submap` event; "" is the global map.
+  property string currentSubmap: ""
   // Event time in ms times 1000 plus a per-event count (see install-bindings).
   // It passes 2^31 within an hour of boot, so it is a double, exact to 2^53.
   property real lastEventSequence: 0
@@ -131,7 +134,7 @@ Item {
 
   function rebuildModel() {
     viewModel = Model.buildRows(bindings, modifierMask,
-      { maxRowsPerColumn: 16, compact: config.compact })
+      { maxRowsPerColumn: 16, compact: config.compact, submap: currentSubmap })
   }
 
   function maybeReveal() {
@@ -242,6 +245,10 @@ Item {
       if (event.name === "configreloaded") {
         root.bindingsStale = true
         root.requestBindings()
+      } else if (event.name === "submap") {
+        root.currentSubmap = String(event.data || "")
+        root.rebuildModel()
+        root.maybeReveal()
       }
     }
   }

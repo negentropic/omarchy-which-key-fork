@@ -38,6 +38,14 @@ assert.strictEqual(superOnly.rows[3].label, "1")
 assert.strictEqual(superOnly.rows[3].key.includes("SUPER"), false)
 assert.strictEqual(superOnly.rows.some(row => row.key === "Q"), false)
 
+// In a submap, only that submap's bindings (and their branches) are shown;
+// "" is the global map.
+assert.deepStrictEqual(Array.from(Model.buildRows(bindings, 64, { categorize: false, submap: "" }).rows,
+  row => row.description), ["Browser", "Close window", "Workspace 1"])
+assert.deepStrictEqual(Array.from(Model.buildRows(bindings, 64, { categorize: false, submap: "apps" }).rows,
+  row => row.description), ["Second browser"])
+assert.deepStrictEqual(Array.from(Model.buildRows(bindings, 64, { submap: "apps" }).branches), [])
+
 const ctrl = Model.buildRows(bindings, 68)
 assert.deepStrictEqual(Array.from(ctrl.rows, row => row.description), ["Emoji"])
 assert.strictEqual(ctrl.title, "SUPER + CTRL")

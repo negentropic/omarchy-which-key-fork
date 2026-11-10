@@ -670,14 +670,22 @@ function joinDescriptions(descriptions) {
   return descriptions.join(" · ")
 }
 
+// Bindings of the submap in `options.submap` ("" is the global map); when
+// no submap is given, every submap is shown, each key kept apart per submap.
+function inSubmap(binding, submap) {
+  return submap === null || String(binding.submap || "") === submap
+}
+
 function buildRows(bindings, modifierMask, options) {
   var source = Array.isArray(bindings) ? bindings : []
   var numericMask = Number(modifierMask)
+  var submap = options && typeof options.submap === "string" ? options.submap : null
   var rows = []
 
   for (var index = 0; index < source.length; index++) {
     var binding = source[index]
-    if (!isRecord(binding) || Number(binding.modmask) !== numericMask) continue
+    if (!isRecord(binding) || Number(binding.modmask) !== numericMask
+        || !inSubmap(binding, submap)) continue
 
     var description = String(binding.description || "").trim()
     var key = triggerKey(binding.key)
@@ -727,7 +735,7 @@ function buildRows(bindings, modifierMask, options) {
     rows: rows,
     columns: categorize ? chunkCategorized(rows, maximum) : chunkRows(rows, maximum),
     widestLabel: widestLabel,
-    branches: buildBranches(source, numericMask)
+    branches: buildBranches(source, numericMask, submap)
   }
 }
 
@@ -736,7 +744,8 @@ var BRANCH_LABELS = { 1: "Shift", 4: "Ctrl", 8: "Alt", 64: "Super" }
 // The modifiers that can still be added to the held chord, each with how many
 // described shortcuts lie somewhere beyond it, so the guide can hint at the
 // next step of a combo before it is pressed.
-function buildBranches(source, mask) {
+function buildBranches(source, mask, submap) {
+  if (submap === undefined) submap = null
   var branches = []
   var order = [1, 4, 8, 64]
   for (var orderIndex = 0; orderIndex < order.length; orderIndex++) {
@@ -746,7 +755,7 @@ function buildBranches(source, mask) {
     var count = 0
     for (var index = 0; index < source.length; index++) {
       var binding = source[index]
-      if (!isRecord(binding)) continue
+      if (!isRecord(binding) || !inSubmap(binding, submap)) continue
       var modmask = Number(binding.modmask)
       if ((modmask & mask) !== mask || (modmask & bit) === 0) continue
       if (!String(binding.description || "").trim()) continue
