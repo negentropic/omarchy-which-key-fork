@@ -364,7 +364,8 @@ function chunkRows(rows, maximum) {
 // once. A press/release pair worded as one ("Start dictation" / "Stop
 // dictation") reads as "Start/stop dictation"; any other release half is
 // dropped when a press exists, and the remaining descriptions are joined.
-// `duplicate` marks a key with several press actions.
+// `duplicate` marks a key with several press actions and `actions` counts
+// them: Hyprland runs every one, so the guide flags them.
 function mergeRows(rows) {
   var merged = []
   var byIdentity = {}
@@ -391,6 +392,7 @@ function mergeRows(rows) {
     for (var field in current.row) output[field] = current.row[field]
     output.description = held || joinDescriptions(descriptions)
     output.duplicate = !held && descriptions.length > 1
+    output.actions = held ? 1 : descriptions.length
     output.release = current.presses.length === 0
     result.push(output)
   }
@@ -415,8 +417,11 @@ function combinedRow(members, label, description) {
   row.sortKey = members[0].label
   row.keys = members.map(function(member) { return member.key })
   row.duplicate = false
-  for (var index = 0; index < members.length; index++)
+  row.actions = 1
+  for (var index = 0; index < members.length; index++) {
     if (members[index].duplicate) row.duplicate = true
+    row.actions = Math.max(row.actions, members[index].actions || 1)
+  }
   return row
 }
 

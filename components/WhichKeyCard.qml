@@ -102,16 +102,38 @@ BorderSurface {
               RowLayout {
                 spacing: Style.space(6)
 
-                Text {
-                  textFormat: Text.PlainText
+                // The key, and beside it in the same column a count when
+                // Hyprland runs several actions on it: often a deliberate
+                // chain, sometimes a binding that shadows another by accident.
+                Row {
                   Layout.preferredWidth: card.keyWidth
                   Layout.alignment: Qt.AlignTop
-                  text: modelData.label
-                  color: Color.accent
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.body
-                  font.bold: true
-                  elide: Text.ElideRight
+                  spacing: Style.space(4)
+
+                  Text {
+                    id: keyText
+                    textFormat: Text.PlainText
+                    width: Math.min(implicitWidth, card.keyWidth
+                      - (actionCount.visible ? actionCount.implicitWidth + parent.spacing : 0))
+                    text: modelData.label
+                    color: Color.accent
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.body
+                    font.bold: true
+                    elide: Text.ElideRight
+                  }
+
+                  Text {
+                    id: actionCount
+                    visible: (entry.modelData.actions || 1) > 1
+                    anchors.baseline: keyText.baseline
+                    textFormat: Text.PlainText
+                    text: "×" + entry.modelData.actions
+                    color: Color.urgent
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.caption
+                    font.bold: true
+                  }
                 }
 
                 Text {

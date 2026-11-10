@@ -81,6 +81,8 @@ assert.deepStrictEqual(Array.from(merged.rows, row => [row.label, row.descriptio
   ["Tab", "Focus on next window · Reveal active window on top", true],
   ["F9", "Start/stop dictation", false]
 ])
+// Hyprland runs every action on a key, so the guide counts them.
+assert.deepStrictEqual(Array.from(merged.rows, row => row.actions), [2, 2, 1])
 assert.deepStrictEqual(Array.from(Model.buildRows([
   { modmask: 8, key: "F10", description: "Record" },
   { modmask: 8, key: "F10", description: "Save recording", release: true }
