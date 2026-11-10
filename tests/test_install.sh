@@ -108,7 +108,7 @@ assert_equal "640" "$(stat -c '%a' "$config")" \
   "installer should preserve config mode"
 assert_file_contains "$config" 'hl.on("input.keyboard.key"' \
   "installer should observe native keyboard events"
-assert_file_contains "$config" 'math.floor(time) * 1000 + omarchy_which_key_count' \
+assert_file_contains "$config" 'local sequence = time * 1000 + omarchy_which_key_count' \
   "observer should preserve compositor event order"
 if grep -Fq 'which-key-trigger dismiss' "$config"; then
   printf 'FAIL: a shortcut key must leave the guide open for the next one\n' >&2

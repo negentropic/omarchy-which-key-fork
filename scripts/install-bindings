@@ -102,26 +102,47 @@ awk -v begin="$begin_marker" -v end="$end_marker" '
   printf '%s\n' 'local omarchy_which_key_bits = {'
   while read -r _ name bit; do printf '  %s = %s,\n' "$name" "$bit"; done <"$entries"
   printf '%s\n' '}'
-  printf '%s\n' 'local omarchy_which_key_held = {}'
-  printf '%s\n' 'local omarchy_which_key_count = 0'
-  printf '%s\n' 'hl.on("input.keyboard.key", function(keycode, time, state)'
-  printf '%s\n' '  local key = omarchy_which_key_codes[keycode]'
-  printf '%s\n' '  -- Only a modifier change moves the guide. A shortcut key is ignored so'
-  printf '%s\n' '  -- that one held Super can run several shortcuts in a row.'
-  printf '%s\n' '  if not key then return end'
-  printf '%s\n' '  local pressed = state == 1'
-  printf '%s\n' '  omarchy_which_key_held[key.name] = pressed or nil'
-  printf '%s\n' '  local mask = 0'
-  printf '%s\n' '  for name, _ in pairs(omarchy_which_key_held) do'
-  printf '%s\n' '    mask = mask | omarchy_which_key_bits[name]'
-  printf '%s\n' '  end'
-  printf '%s\n' '  -- Keys reported together share a millisecond, so a running count orders'
-  printf '%s\n' '  -- them within it: the sequence is the time in ms, times 1000, plus the'
-  printf '%s\n' '  -- count. It outgrows a 32-bit int, so it travels as a decimal string.'
-  printf '%s\n' '  omarchy_which_key_count = omarchy_which_key_count % 999 + 1'
-  printf '%s\n' '  local sequence = math.floor(time) * 1000 + omarchy_which_key_count'
-  printf '%s\n' '  hl.exec_cmd("which-key-trigger state " .. string.format("%.0f", sequence) .. " " .. tostring(mask))'
-  printf '%s\n' 'end)'
+  cat <<'LUA'
+local omarchy_which_key_held = {}
+local omarchy_which_key_count = 0
+local omarchy_which_key_last = 0
+local omarchy_which_key_idle = 0
+local function omarchy_which_key_send(time, mask)
+  -- Keys reported together share a millisecond, so a running count orders
+  -- them within it: the sequence is the time in ms, times 1000, plus the
+  -- count. It outgrows a 32-bit int, so it travels as a decimal string.
+  omarchy_which_key_count = omarchy_which_key_count % 999 + 1
+  local sequence = time * 1000 + omarchy_which_key_count
+  hl.exec_cmd("which-key-trigger state " .. string.format("%.0f", sequence) .. " " .. tostring(mask))
+end
+hl.on("input.keyboard.key", function(keycode, time, state)
+  omarchy_which_key_idle = 0
+  omarchy_which_key_last = math.floor(time)
+  local key = omarchy_which_key_codes[keycode]
+  -- Only a modifier change moves the guide. A shortcut key is ignored so
+  -- that one held Super can run several shortcuts in a row.
+  if not key then return end
+  local pressed = state == 1
+  omarchy_which_key_held[key.name] = pressed or nil
+  local mask = 0
+  for name, _ in pairs(omarchy_which_key_held) do
+    mask = mask | omarchy_which_key_bits[name]
+  end
+  omarchy_which_key_send(omarchy_which_key_last, mask)
+end)
+-- Hyprland cannot be asked which modifiers are down, so a release the hook
+-- never saw (a VT switch, a grab) would leave a modifier held forever and the
+-- guide open on the wrong layer. After about 30 s without any key event, the
+-- held state is dropped. The reset is stamped 1 ms after the last event: later
+-- than anything sent, earlier than any real key to come.
+hl.timer(function()
+  if next(omarchy_which_key_held) == nil then return end
+  omarchy_which_key_idle = omarchy_which_key_idle + 1
+  if omarchy_which_key_idle < 6 then return end
+  omarchy_which_key_held = {}
+  omarchy_which_key_send(omarchy_which_key_last + 1, 0)
+end, { timeout = 5000, type = "repeat" })
+LUA
   printf '%s\n' "$end_marker"
 } >>"$temporary"
 

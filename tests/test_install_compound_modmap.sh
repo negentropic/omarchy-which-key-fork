@@ -104,10 +104,14 @@ fi
 
 OMARCHY_TEST_CONFIG="$config" \
   lua - <<'LUA'
-local callback, commands = nil, {}
+local callback, tick, commands = nil, nil, {}
 o = { bind = function() end }
 hl = {
   on = function(_, fn) callback = fn end,
+  timer = function(fn, opts)
+    assert(opts.timeout == 5000 and opts.type == "repeat")
+    tick = fn
+  end,
   exec_cmd = function(command) commands[#commands + 1] = command end,
 }
 dofile(os.getenv("OMARCHY_TEST_CONFIG"))
@@ -132,6 +136,19 @@ local count = #commands
 callback(66, 11, 1)
 callback(66, 12, 0)
 assert(#commands == count, "Lock-only keys must be ignored")
+
+-- A modifier whose release was never seen is dropped after ~30 s without any
+-- key event, stamped 1 ms after the last event.
+callback(133, 20, 1)
+for _ = 1, 5 do tick() end
+assert(#commands == count + 1, "the reset must wait for six idle ticks")
+callback(24, 21, 1) -- Any key, modifier or not, restarts the wait.
+for _ = 1, 5 do tick() end
+assert(#commands == count + 1, "a key event must restart the idle wait")
+tick()
+assert(commands[#commands] == "which-key-trigger state 22012 0", commands[#commands])
+tick()
+assert(#commands == count + 2, "nothing is held, so nothing more is sent")
 LUA
 
 # Super may exist only as part of a compound map; installation must accept it.
@@ -145,6 +162,7 @@ local callback, command
 o = { bind = function() end }
 hl = {
   on = function(_, fn) callback = fn end,
+  timer = function() end,
   exec_cmd = function(value) command = value end,
 }
 dofile(os.getenv("OMARCHY_TEST_CONFIG"))
