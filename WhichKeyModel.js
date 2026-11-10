@@ -196,10 +196,6 @@ function triggerKey(key) {
   return value.trim()
 }
 
-function isSpecialKey(key) {
-  return !/^[A-Za-z0-9]$/.test(String(key || ""))
-}
-
 // Rows are grouped by the kind of key so the grid reads in a predictable
 // order: letters, the number row, arrows, other named keys, function keys,
 // mouse, then media keys.
@@ -702,13 +698,12 @@ function buildRows(bindings, modifierMask, options) {
       label: label,
       description: description,
       duplicate: false,
-      special: isSpecialKey(key),
+      actions: 1,
       group: keyGroup(key, label),
       groupStart: false,
       keycode: Number(binding.keycode) || 0,
       submap: String(binding.submap || ""),
-      release: binding.release === true,
-      repeat: binding.repeat === true
+      release: binding.release === true
     })
   }
 

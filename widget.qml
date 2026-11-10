@@ -232,28 +232,6 @@ BarWidget {
                       Quickshell.execDetached(["omarchy-launch-config-editor", config.configHome + "/hypr/bindings.lua"])
                     }
                   }
-
-                  MenuSeparator { width: parent.width }
-
-                  MenuRow {
-                    iconText: ""
-                    text: "GitHub..."
-                    external: true
-                    onActivated: {
-                      linkMenu.close()
-                      Qt.openUrlExternally("https://github.com/huacnlee/omarchy-which-key")
-                    }
-                  }
-
-                  MenuRow {
-                    iconText: ""
-                    text: "Twitter..."
-                    external: true
-                    onActivated: {
-                      linkMenu.close()
-                      Qt.openUrlExternally("https://x.com/huacnlee")
-                    }
-                  }
                 }
               }
             }

@@ -26,7 +26,6 @@ assert.deepStrictEqual(Array.from(shifted.rows, row => row.key), ["B", "1", "cod
 assert.strictEqual(shifted.title, "SUPER + SHIFT")
 assert.strictEqual(shifted.rows[3].label, "Tab")
 assert.strictEqual(shifted.rows[2].label, "-")
-assert.strictEqual(shifted.rows[2].special, true)
 assert.deepStrictEqual(Array.from(shifted.rows, row => row.groupStart), [false, true, true, false])
 
 const superOnly = Model.buildRows(bindings, 64, { categorize: false })

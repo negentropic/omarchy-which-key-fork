@@ -5,7 +5,7 @@
   "version": "0.2.0",
   "author": "negentropic",
   "license": "MIT",
-  "description": "Personal which-key shortcut guide (forked from huacnlee/omarchy-which-key) that shows live Hyprland keybindings while Super is held",
+  "description": "Personal which-key shortcut guide (forked from huacnlee/omarchy-which-key) that shows the live Hyprland keybindings for the modifiers being held",
   "kinds": [
     "overlay",
     "bar-widget"

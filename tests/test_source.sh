@@ -26,9 +26,6 @@ grep -Fq 'screenName === root.focusedScreenName' WhichKey.qml
 test -f components/WhichKeyCard.qml
 test -f components/WhichKeyMenu.qml
 test -f components/CompactSettingToggle.qml
-grep -Fq 'PanelSeparator {' components/MenuSeparator.qml
-grep -Fq 'foreground: Color.menu.text' components/MenuSeparator.qml
-grep -Fq 'strength: 0.12' components/MenuSeparator.qml
 test -f widget.qml
 test -f WhichKeyConfig.qml
 for script in integration-status enable-integration disable-integration; do
@@ -39,9 +36,11 @@ grep -Fq 'text: "Enabled"' widget.qml
 grep -Fq 'text: "Repair..."' widget.qml
 grep -Fq 'model: config.combinations' widget.qml
 grep -Fq 'delegate: CompactSettingToggle {' widget.qml
-grep -Fq 'https://github.com/huacnlee/omarchy-which-key' widget.qml
-grep -Fq 'https://x.com/huacnlee' widget.qml
-grep -Fq 'Qt.openUrlExternally' widget.qml
+# The menu links to the user's own config, not to the upstream author.
+if grep -Fq 'huacnlee' widget.qml; then
+  printf 'FAIL: widget must not link to upstream accounts\n' >&2
+  exit 1
+fi
 grep -Fq 'text: "Keybindings..."' widget.qml
 grep -Fq 'Quickshell.execDetached(["omarchy-launch-config-editor", config.configHome + "/hypr/bindings.lua"])' widget.qml
 grep -Fq 'contentWidth: panel.fittedContentWidth(Style.space(360))' widget.qml
@@ -56,9 +55,6 @@ grep -Fq 'anchors.fill: parent' widget.qml
 grep -Fq 'selected: linkMenu.opened' widget.qml
 grep -Fq 'var right = boundary.x + boundaryItem.width' components/WhichKeyMenu.qml
 grep -Fq 'ToggleSwitch {' widget.qml
-grep -Fq 'text: "GitHub..."' widget.qml
-grep -Fq 'text: "Twitter..."' widget.qml
-grep -Fq 'MenuSeparator {' widget.qml
 grep -Fq 'WhichKeyMenu {' widget.qml
 grep -Fq 'boundaryItem: keyCatcher' widget.qml
 grep -Fq 'text: "All"' widget.qml
