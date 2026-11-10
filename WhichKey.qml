@@ -16,16 +16,23 @@ Item {
   property var manifest: null
 
   property bool opened: false
-  property int generation: 0
   property int modifierMask: 0
-  property var bindings: []
   property var viewModel: ({ title: "NONE", rows: [], columns: [] })
   property bool held: false
-  property bool bindingsReady: false
-  property bool loadStarted: false
+  property bool chordPrepared: false
   property bool revealDue: false
   property bool nonSuperDue: false
-  property int pendingLoadGeneration: 0
+
+  // The bindings are cached across chords: a quick Super+1 should not spawn
+  // `hyprctl binds`. The cache is refreshed when Hyprland reloads its config,
+  // and in the background on a chord once it is older than a minute, which
+  // covers bindings changed at runtime without a reload.
+  property var bindings: []
+  property bool bindingsLoaded: false
+  property bool bindingsStale: true
+  property real bindingsLoadedAt: 0
+  property bool reloadPending: false
+  readonly property int bindingsMaxAgeMs: 60000
   // Event time in ms times 1000 plus a per-event count (see install-bindings).
   // It passes 2^31 within an hour of boot, so it is a double, exact to 2^53.
   property real lastEventSequence: 0
@@ -62,13 +69,10 @@ Item {
 
   function beginChord() {
     held = true
-    generation += 1
     opened = false
-    bindingsReady = false
-    loadStarted = false
+    chordPrepared = false
     revealDue = false
     nonSuperDue = false
-    bindings = []
     rebuildModel()
     revealTimer.restart()
     nonSuperTimer.restart()
@@ -76,28 +80,26 @@ Item {
 
   function endChord() {
     held = false
-    generation += 1
     revealTimer.stop()
     nonSuperTimer.stop()
     revealDue = false
     nonSuperDue = false
-    bindingsReady = false
-    loadStarted = false
-    pendingLoadGeneration = 0
-    if (bindingProcess.running) bindingProcess.running = false
+    chordPrepared = false
     close()
   }
 
-  // Loading spawns helper processes, so a chord without Super waits until it
+  // Preparing spawns helper processes, so a chord without Super waits until it
   // has been held long enough to show anything: a quick Ctrl+C costs nothing.
   function ensureLoading() {
-    if (!held || loadStarted) return
+    if (!held || chordPrepared) return
     if ((modifierMask & 64) === 0 && !nonSuperDue) return
-    loadStarted = true
+    chordPrepared = true
     // The bar widget owns a separate config instance and the file is no longer
     // watched, so the guide re-reads its settings as each chord starts.
     config.reload()
-    requestBindings(generation)
+    if (!bindingsLoaded || bindingsStale
+        || Date.now() - bindingsLoadedAt > bindingsMaxAgeMs)
+      requestBindings()
   }
 
   function setModifiers(mask) {
@@ -135,38 +137,38 @@ Item {
   function maybeReveal() {
     var withSuper = (modifierMask & 64) !== 0
     opened = held && revealDue && (withSuper || nonSuperDue)
-      && config.maskEnabled(modifierMask) && bindingsReady
+      && config.maskEnabled(modifierMask) && bindingsLoaded
       && viewModel && ((viewModel.rows && viewModel.rows.length > 0)
         || (viewModel.branches && viewModel.branches.length > 0))
   }
 
-  function requestBindings(requestGeneration) {
+  // A request during a load is queued, not lost: the load in flight may
+  // predate the config reload that asked for the new one.
+  function requestBindings() {
     if (!sourceDir) {
       console.warn("negentropic.which-key: plugin source directory is unavailable")
       return
     }
-
     if (bindingProcess.running) {
-      pendingLoadGeneration = requestGeneration
-      bindingProcess.running = false
+      reloadPending = true
       return
     }
-    startBindingLoad(requestGeneration)
+    startBindingLoad()
   }
 
-  function startBindingLoad(requestGeneration) {
-    bindingProcess.loadGeneration = requestGeneration
+  function startBindingLoad() {
+    bindingsStale = false
     bindingProcess.command = [sourceDir + "/scripts/which-key-bindings"]
     bindingProcess.running = true
   }
 
-  function acceptBindingOutput(requestGeneration, output) {
-    if (!Model.isCurrentGeneration(generation, requestGeneration) || !held)
-      return
-
+  // A failed load keeps whatever was cached and marks it stale, so the next
+  // chord tries again.
+  function acceptBindingOutput(output) {
     var payload = String(output || "")
     if (Model.isPayloadTooLarge(payload)) {
       console.warn("negentropic.which-key: binding data is too large; ignoring it")
+      bindingsStale = true
       return
     }
 
@@ -175,12 +177,17 @@ Item {
       parsed = JSON.parse(payload)
     } catch (error) {
       console.warn("negentropic.which-key: invalid binding data:", error)
+      bindingsStale = true
       return
     }
-    if (!Array.isArray(parsed)) return
+    if (!Array.isArray(parsed)) {
+      bindingsStale = true
+      return
+    }
 
     bindings = Model.limitBindings(parsed)
-    bindingsReady = true
+    bindingsLoaded = true
+    bindingsLoadedAt = Date.now()
     rebuildModel()
     maybeReveal()
   }
@@ -209,28 +216,38 @@ Item {
 
   Process {
     id: bindingProcess
-    property int loadGeneration: 0
     command: []
     running: false
     stdout: StdioCollector { id: bindingStdout; waitForEnd: true }
     stderr: StdioCollector { id: bindingStderr; waitForEnd: true }
 
     onExited: function(exitCode, exitStatus) {
-      var completedGeneration = loadGeneration
-      var nextGeneration = root.pendingLoadGeneration
-      root.pendingLoadGeneration = 0
-
-      if (exitCode === 0)
-        root.acceptBindingOutput(completedGeneration, bindingStdout.text)
-      else if (Model.isCurrentGeneration(root.generation, completedGeneration)
-          && root.held && nextGeneration === 0)
+      if (exitCode === 0) {
+        root.acceptBindingOutput(bindingStdout.text)
+      } else {
+        root.bindingsStale = true
         console.warn("negentropic.which-key: binding load failed:",
           Model.clampMessage(bindingStderr.text))
-
-      if (nextGeneration !== 0)
-        Qt.callLater(function() { root.startBindingLoad(nextGeneration) })
+      }
+      if (root.reloadPending) {
+        root.reloadPending = false
+        Qt.callLater(function() { root.startBindingLoad() })
+      }
     }
   }
+
+  Connections {
+    target: Hyprland
+    function onRawEvent(event) {
+      if (event.name === "configreloaded") {
+        root.bindingsStale = true
+        root.requestBindings()
+      }
+    }
+  }
+
+  // Load ahead of the first chord, so even the first Super shows at once.
+  Component.onCompleted: requestBindings()
 
   IpcHandler {
     target: "negentropic.which-key"

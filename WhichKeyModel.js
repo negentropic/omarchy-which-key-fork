@@ -758,7 +758,3 @@ function buildBranches(source, mask) {
   }
   return branches
 }
-
-function isCurrentGeneration(expected, received) {
-  return expected === received
-}

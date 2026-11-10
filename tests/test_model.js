@@ -254,9 +254,6 @@ assert.strictEqual(Model.keyLabel("code:201", 0), "F23")
 assert.strictEqual(Model.keyLabel("mouse:273", 0), "Right Mouse")
 assert.strictEqual(Model.keyLabel("mouse:275", 0), "Mouse 4")
 
-assert.strictEqual(Model.isCurrentGeneration(3, 3), true)
-assert.strictEqual(Model.isCurrentGeneration(3, 2), false)
-assert.strictEqual(Model.isCurrentGeneration(3, "3"), false)
 
 assert.strictEqual(Model.isPayloadTooLarge(""), false)
 assert.strictEqual(Model.isPayloadTooLarge("x".repeat(Model.MAX_PAYLOAD_CHARS)), false)

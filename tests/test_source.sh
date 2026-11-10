@@ -179,8 +179,8 @@ if grep -Fq 'FileView' WhichKeyConfig.qml; then
 fi
 
 grep -Fq 'scripts/which-key-bindings' WhichKey.qml
-grep -Fq 'loadGeneration' WhichKey.qml
-grep -Fq 'Model.isCurrentGeneration' WhichKey.qml
+# Bindings are cached and refreshed on a config reload, not loaded per chord.
+grep -Fq 'event.name === "configreloaded"' WhichKey.qml
 
 if grep -Eq 'WlrKeyboardFocus\.(Exclusive|OnDemand)' WhichKey.qml; then
   printf 'FAIL: overlay state must never request keyboard focus\n' >&2
