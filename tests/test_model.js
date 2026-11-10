@@ -19,7 +19,8 @@ const bindings = [
   "bad row"
 ]
 
-const shifted = Model.buildRows(bindings, 65)
+// Key-kind ordering is what remains with categories off.
+const shifted = Model.buildRows(bindings, 65, { categorize: false })
 // Sorted by kind of key: letters, numbers, then other named keys.
 assert.deepStrictEqual(Array.from(shifted.rows, row => row.key), ["B", "1", "code:20", "TAB"])
 assert.strictEqual(shifted.title, "SUPER + SHIFT")
@@ -28,7 +29,7 @@ assert.strictEqual(shifted.rows[2].label, "-")
 assert.strictEqual(shifted.rows[2].special, true)
 assert.deepStrictEqual(Array.from(shifted.rows, row => row.groupStart), [false, true, true, false])
 
-const superOnly = Model.buildRows(bindings, 64)
+const superOnly = Model.buildRows(bindings, 64, { categorize: false })
 assert.deepStrictEqual(Array.from(superOnly.rows, row => row.key), ["B", "B", "W", "code:10"])
 // Same key in different submaps stays separate.
 assert.deepStrictEqual(Array.from(superOnly.rows, row => row.submap), ["", "apps", "", ""])
@@ -45,7 +46,7 @@ const alt = Model.buildRows(bindings, 72)
 assert.strictEqual(alt.rows[0].label, "Left Mouse")
 assert.strictEqual(alt.title, "SUPER + ALT")
 
-const columns = Model.buildRows(bindings, 65, { maxRowsPerColumn: 2 }).columns
+const columns = Model.buildRows(bindings, 65, { maxRowsPerColumn: 2, categorize: false }).columns
 assert.strictEqual(columns.length, 2)
 assert.deepStrictEqual(Array.from(columns[0], row => row.key), ["B", "1"])
 assert.deepStrictEqual(Array.from(columns[1], row => row.key), ["code:20", "TAB"])
@@ -54,7 +55,7 @@ assert.deepStrictEqual(Array.from(columns[1], row => row.key), ["code:20", "TAB"
 const many = []
 for (const letter of "ABCDEFGHIJKLMNOPQ") many.push({ modmask: 64, key: letter, description: letter })
 assert.deepStrictEqual(
-  Array.from(Model.buildRows(many, 64, { maxRowsPerColumn: 16 }).columns, column => column.length),
+  Array.from(Model.buildRows(many, 64, { maxRowsPerColumn: 16, categorize: false }).columns, column => column.length),
   [9, 8])
 
 // Chained actions on one key merge; press/release pairs show the press only.
@@ -89,7 +90,7 @@ compactSource.push(
   { modmask: 64, key: "XF86AudioRaiseVolume", description: "Volume up" },
   { modmask: 64, key: "XF86AudioLowerVolume", description: "Volume down" },
   { modmask: 64, key: "Q", description: "Close window" })
-const compact = Model.buildRows(compactSource, 64)
+const compact = Model.buildRows(compactSource, 64, { categorize: false })
 assert.deepStrictEqual(Array.from(compact.rows, row => row.label + " | " + row.description), [
   "Q | Close window",
   "1–0 | Switch to workspace",
@@ -133,9 +134,64 @@ const ordered = Model.buildRows([
   { modmask: 64, key: "LEFT", description: "left" },
   { modmask: 64, key: "mouse_down", description: "scroll" },
   { modmask: 64, key: "Z", description: "z" }
-], 64)
+], 64, { categorize: false })
 assert.deepStrictEqual(Array.from(ordered.rows, row => row.label), ["Z", "1", "0", "←", "↓", "Scroll ↓"])
 assert.strictEqual(ordered.widestLabel, "Scroll ↓")
+
+// Categories: rows are sectioned by what their description says they do.
+assert.strictEqual(Model.rowCategory({ description: "Terminal" }), "Apps")
+assert.strictEqual(Model.rowCategory({ description: "Close window" }), "Windows")
+assert.strictEqual(Model.rowCategory({ description: "Switch to workspace" }), "Workspaces")
+assert.strictEqual(Model.rowCategory({ description: "Move window to monitor" }), "Displays")
+assert.strictEqual(Model.rowCategory({ description: "Volume up/down" }), "Media & devices")
+assert.strictEqual(Model.rowCategory({ description: "Audio" }), "System")
+assert.strictEqual(Model.rowCategory({ description: "Extract text (OCR) from screenshot" }), "Capture")
+assert.strictEqual(Model.rowCategory({ description: "Dismiss all notifications" }), "Notifications")
+assert.strictEqual(Model.rowCategory({ description: "Universal copy" }), "Clipboard")
+assert.strictEqual(Model.rowCategory({ description: "Lock system" }), "System")
+
+const categorized = Model.buildRows(compactSource, 64)
+assert.deepStrictEqual(Array.from(categorized.rows, row => row.category + " | " + row.label), [
+  "Windows | Q",
+  "Windows | ← → ↑ ↓",
+  "Windows | - =",
+  "Windows | Tab",
+  "Windows | Scroll ↑↓",
+  "Workspaces | 1–0",
+  "Media & devices | Vol ±"
+])
+// Each column names the section it starts with, and a section that continues
+// into the next column is named again there.
+const sectioned = Model.buildRows(compactSource, 64, { maxRowsPerColumn: 4 }).columns
+assert.deepStrictEqual(Array.from(sectioned, column => Array.from(column, row => row.header || "·").join(" ")), [
+  "Windows · ·",
+  "Windows ·",
+  "Workspaces Media & devices"
+])
+// Headers may stretch a column up to a quarter past the maximum (4 -> 5).
+assert.ok(Array.from(sectioned).every(column => column.length + column.filter(row => row.header).length <= 5))
+
+// Word boundaries keep app names out of the action categories.
+for (const name of ["PowerPoint", "Social media", "Spotify", "Windows VM"])
+  assert.strictEqual(Model.rowCategory({ description: name }), "Apps", name)
+assert.strictEqual(Model.rowCategory({ description: "Display settings" }), "System")
+assert.strictEqual(Model.rowCategory({ description: "Next/previous track" }), "Media & devices")
+assert.strictEqual(Model.rowCategory({ description: "Toggle single-window square aspect" }), "Windows")
+
+// Headers do not cost an extra column when stretched columns can hold them,
+// and the columns come out even rather than full ones plus a short leftover.
+const sectionedSource = []
+for (const letter of "ABCDEFGHIJKLMNOPQRS") sectionedSource.push({ modmask: 64, key: letter, description: "App " + letter })
+sectionedSource.push(
+  { modmask: 64, key: "1", description: "Close window" },
+  { modmask: 64, key: "2", description: "Float window" },
+  { modmask: 64, key: "3", description: "Next workspace" },
+  { modmask: 64, key: "4", description: "Lock system" },
+  { modmask: 64, key: "5", description: "Theme menu" })
+const sectionedColumns = Model.buildRows(sectionedSource, 64, { maxRowsPerColumn: 16, compact: false }).columns
+const lineCounts = Array.from(sectionedColumns, column => column.length + column.filter(row => row.header).length)
+assert.strictEqual(sectionedColumns.length, Model.buildRows(sectionedSource, 64, { maxRowsPerColumn: 16, compact: false, categorize: false }).columns.length)
+assert.ok(Math.max(...lineCounts) - Math.min(...lineCounts) <= 3, lineCounts.join("/"))
 
 assert.strictEqual(Model.buildRows(undefined, 64).rows.length, 0)
 assert.strictEqual(Model.buildRows({}, 64).rows.length, 0)

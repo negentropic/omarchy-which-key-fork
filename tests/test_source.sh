@@ -119,7 +119,8 @@ grep -Fq 'card.viewModel.widestLabel : "Backspace"' components/WhichKeyCard.qml
 grep -Fq 'wrapMode: Text.Wrap' components/WhichKeyCard.qml
 grep -Fq 'Math.ceil(keyMetrics.advanceWidth)' components/WhichKeyCard.qml
 grep -Fq 'font.weight: Font.Normal' components/WhichKeyCard.qml
-test "$(grep -Fc 'color: Color.muted' components/WhichKeyCard.qml)" -eq 1
+# Only the layer title and the section headers are muted; descriptions never are.
+test "$(grep -Fc 'color: Color.muted' components/WhichKeyCard.qml)" -eq 2
 if grep -v 'color: "transparent"' components/WhichKeyCard.qml | grep -Eq '#[0-9A-Fa-f]{3,8}|Qt\.rgba?\(|color:[[:space:]]*"[^"]+"'; then
   printf 'FAIL: visible card colors must use Omarchy system color tokens\n' >&2
   exit 1

@@ -14,8 +14,12 @@ narrow it. Release Super to close it.
   widget settings). These open after at least 500 ms so quick shortcuts like
   Ctrl+C never flash the guide.
 - Readable key labels (`/`, `,`, `` ` ``, `Print`, `Scroll ↓`, `Vol +`,
-  `Left Mouse`), rows grouped by kind of key, long descriptions wrapped
-  instead of cut off, and several actions on one key merged into one row.
+  `Left Mouse`), long descriptions wrapped instead of cut off, and several
+  actions on one key merged into one row.
+- Rows sorted into headed sections (Apps, Windows, Workspaces, Displays,
+  Media & devices, Capture, Notifications, Clipboard, System) by the words in
+  their descriptions; anything unmatched counts as an app launcher. Headers
+  may stretch a column a little past 16 lines rather than add a column.
 - Compact rows: keys that differ only by a number, direction or opposite word
   share one row (`1–0  Switch to workspace`, `← → ↑ ↓  Focus window`,
   `- =  Expand/shrink window left`, `Vol ±  Volume up/down`). Turn off

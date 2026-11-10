@@ -247,6 +247,106 @@ function compareRows(left, right) {
   return String(left.description).localeCompare(String(right.description))
 }
 
+// ---------------------------------------------------------------------------
+// Categories: Hyprland bindings carry no category, only a description, so
+// rows are sorted into sections by the words they use. Rules are tried in
+// order and the first match wins; anything unmatched is an app launcher,
+// which is what the long tail of letter bindings is.
+
+var CATEGORY_ORDER = ["Apps", "Windows", "Workspaces", "Displays", "Media & devices",
+  "Capture", "Notifications", "Clipboard", "System"]
+
+var CATEGORY_RULES = [
+  // Settings panels named by a single word ("Audio", "Display") are system
+  // menus, not the media or monitor actions their words would suggest.
+  { category: "System", pattern: /^(audio|bluetooth|display|network|power|wi-?fi)( settings)?$/i },
+  { category: "Notifications", pattern: /notification/i },
+  { category: "Workspaces", pattern: /workspace/i },
+  { category: "Displays", pattern: /monitor|laptop display|display mirroring|\bzoom\b/i },
+  { category: "Capture", pattern: /screenshot|screen ?record|colou?r picker|\bocr\b|capture|webcam|transcode|^share$/i },
+  { category: "Windows", pattern: /\bwindow\b|full ?screen|full width|scratchpad|float|pseudo|gaps|transparency|\bsplit\b|group|quake|aspect|minimi[sz]e|^stage$/i },
+  { category: "Media & devices", pattern: /volume|\bmute\b|\btracks?\b|^play$|^pause$|brightness|backlight|touchpad|eject|audio|microphone|dictation/i },
+  { category: "Clipboard", pattern: /\b(copy|paste|cut|select all)\b|clipboard/i },
+  { category: "System", pattern: /menu|\block|\bpower\b|idle|battery|\btime\b|clock|weather|reminder|theme|background|\bbar\b|keybindings|input language|emoji|hardware|system/i }
+]
+
+function rowCategory(row) {
+  var description = String(row.description || "")
+  for (var index = 0; index < CATEGORY_RULES.length; index++)
+    if (CATEGORY_RULES[index].pattern.test(description)) return CATEGORY_RULES[index].category
+  return "Apps"
+}
+
+function compareCategorized(left, right) {
+  var byCategory = CATEGORY_ORDER.indexOf(left.category) - CATEGORY_ORDER.indexOf(right.category)
+  return byCategory !== 0 ? byCategory : compareRows(left, right)
+}
+
+// Lays categorized rows into columns, where a section header counts as a
+// line. Headers may stretch a column up to a quarter past `maximum`, so that
+// sectioning never needs more columns than the same rows would without
+// headers when that is possible. Sections stay whole when they fit in a
+// fresh column; a longer one continues into the next column under a repeated
+// header. Each column's first row of a section carries `header`.
+function chunkCategorized(rows, maximum) {
+  if (rows.length === 0) return []
+
+  var sections = []
+  for (var index = 0; index < rows.length; index++) {
+    var row = rows[index]
+    if (sections.length === 0 || sections[sections.length - 1].name !== row.category)
+      sections.push({ name: row.category, rows: [] })
+    sections[sections.length - 1].rows.push(row)
+  }
+
+  // Settle the column count first: what the rows alone would take, unless
+  // even the stretched height cannot fit them in that many. Then use the
+  // shortest columns that still fit in that count, so they come out even
+  // rather than full ones followed by a short leftover.
+  var lines = rows.length + sections.length
+  var cap = Math.max(maximum, Math.ceil(maximum * 1.25))
+  var target = Math.max(Math.ceil(rows.length / maximum), packSections(sections, cap).length)
+  var limit = Math.min(cap, Math.max(Math.min(maximum, 4), Math.ceil(lines / target)))
+  var packed = packSections(sections, limit)
+  while (packed.length > target && limit < cap) packed = packSections(sections, ++limit)
+  return packed
+}
+
+function packSections(sections, limit) {
+  var columns = []
+  var column = []
+  var used = 0
+  function flush() {
+    if (column.length > 0) columns.push(column)
+    column = []
+    used = 0
+  }
+
+  for (var sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
+    var section = sections[sectionIndex]
+    var needed = section.rows.length + 1
+    // Start a fresh column when the section would fit there but not here, or
+    // when only a header and a lone row would be left at the bottom.
+    if (used > 0 && used + needed > limit && (needed <= limit || limit - used < 3)) flush()
+
+    var start = 0
+    while (start < section.rows.length) {
+      if (used + 2 > limit && used > 0) flush()
+      var take = Math.max(1, Math.min(section.rows.length - start, limit - used - 1))
+      for (var offset = 0; offset < take; offset++) {
+        var placed = copyRow(section.rows[start + offset])
+        placed.header = offset === 0 ? section.name : ""
+        placed.groupStart = false
+        column.push(placed)
+      }
+      used += take + 1
+      start += take
+    }
+  }
+  flush()
+  return columns
+}
+
 // Spread rows evenly across the fewest columns that respect the maximum, so
 // the last column is never a short leftover.
 function chunkRows(rows, maximum) {
@@ -558,12 +658,18 @@ function buildRows(bindings, modifierMask, options) {
 
   rows = mergeRows(rows)
   if (!options || options.compact !== false) rows = compactRows(rows)
-  rows.sort(compareRows)
+  var categorize = !options || options.categorize !== false
+  for (var categoryIndex = 0; categoryIndex < rows.length; categoryIndex++)
+    rows[categoryIndex].category = categorize ? rowCategory(rows[categoryIndex]) : ""
+  rows.sort(categorize ? compareCategorized : compareRows)
 
   var widestLabel = ""
   for (var markIndex = 0; markIndex < rows.length; markIndex++) {
+    rows[markIndex].header = ""
     rows[markIndex].groupStart = markIndex > 0
-      && rows[markIndex].group !== rows[markIndex - 1].group
+      && (categorize
+        ? rows[markIndex].category !== rows[markIndex - 1].category
+        : rows[markIndex].group !== rows[markIndex - 1].group)
     if (rows[markIndex].label.length > widestLabel.length)
       widestLabel = rows[markIndex].label
   }
@@ -576,7 +682,7 @@ function buildRows(bindings, modifierMask, options) {
   return {
     title: modifierTitle(numericMask),
     rows: rows,
-    columns: chunkRows(rows, maximum),
+    columns: categorize ? chunkCategorized(rows, maximum) : chunkRows(rows, maximum),
     widestLabel: widestLabel,
     branches: buildBranches(source, numericMask)
   }

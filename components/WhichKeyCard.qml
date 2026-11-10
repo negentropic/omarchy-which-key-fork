@@ -74,43 +74,62 @@ BorderSurface {
           Layout.alignment: Qt.AlignTop
           spacing: card.rowGap
 
-      Repeater {
-        model: column.modelData
+          Repeater {
+            model: column.modelData
 
-        delegate: RowLayout {
-          required property var modelData
-          required property int index
-          spacing: Style.space(6)
-          // A little air where one kind of key ends and the next begins.
-          Layout.topMargin: modelData.groupStart && index > 0 ? Style.space(6) : 0
+            delegate: ColumnLayout {
+              id: entry
+              required property var modelData
+              required property int index
+              spacing: card.rowGap
+              // A little air where one section (or kind of key) ends and the next
+              // begins.
+              Layout.topMargin: (modelData.header || modelData.groupStart) && index > 0
+                ? Style.space(8) : 0
 
-          Text {
-            textFormat: Text.PlainText
-            Layout.preferredWidth: card.keyWidth
-            Layout.alignment: Qt.AlignTop
-            text: modelData.label
-            color: Color.accent
-            font.family: Style.font.family
-            font.pixelSize: Style.font.body
-            font.bold: true
-            elide: Text.ElideRight
+              // Section header, shown on the first row of each category in a column.
+              Text {
+                visible: !!entry.modelData.header
+                textFormat: Text.PlainText
+                text: entry.modelData.header ? entry.modelData.header.toUpperCase() : ""
+                color: Color.muted
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+                font.bold: true
+                font.letterSpacing: 1.2
+              }
+
+              RowLayout {
+                spacing: Style.space(6)
+
+                Text {
+                  textFormat: Text.PlainText
+                  Layout.preferredWidth: card.keyWidth
+                  Layout.alignment: Qt.AlignTop
+                  text: modelData.label
+                  color: Color.accent
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.body
+                  font.bold: true
+                  elide: Text.ElideRight
+                }
+
+                Text {
+                  textFormat: Text.PlainText
+                  // Natural width up to a cap; longer descriptions wrap onto a second
+                  // line instead of being elided.
+                  Layout.maximumWidth: Style.space(250)
+                  Layout.alignment: Qt.AlignTop
+                  text: modelData.description
+                  color: Color.popups.text
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.body
+                  font.weight: Font.Normal
+                  wrapMode: Text.Wrap
+                }
+              }
+            }
           }
-
-          Text {
-            textFormat: Text.PlainText
-            // Natural width up to a cap; longer descriptions wrap onto a second
-            // line instead of being elided.
-            Layout.maximumWidth: Style.space(250)
-            Layout.alignment: Qt.AlignTop
-            text: modelData.description
-            color: Color.popups.text
-            font.family: Style.font.family
-            font.pixelSize: Style.font.body
-            font.weight: Font.Normal
-            wrapMode: Text.Wrap
-          }
-        }
-      }
         }
       }
     }
