@@ -84,6 +84,10 @@ chmod +x "$fake_xkbcli"
 
 cat >"$fake_hyprctl" <<'SH'
 #!/bin/bash
+if [[ "${1:-}" == reload ]]; then
+  printf 'reload\n' >>"${OMARCHY_TEST_HYPRCTL_LOG:-/dev/null}"
+  exit 0
+fi
 case "${3:-}" in
   input:kb_options) printf '%s\n' '{"str":"altwin:swap_alt_win"}' ;;
   *) printf '%s\n' '{"str":""}' ;;
@@ -139,6 +143,24 @@ assert_equal "1" "$(grep -c '^-- omarchy-which-key:begin$' "$config")" \
   "reinstall should replace rather than duplicate the block"
 test -f "${config}.omarchy-which-key.original"
 
+# The keymap sync rewrites the hook only when it no longer matches the keymap,
+# and reloads Hyprland only then.
+hyprctl_log="$test_root/hyprctl.log"
+sync_keymap() {
+  OMARCHY_WHICH_KEY_XKBCLI="$fake_xkbcli" \
+  OMARCHY_WHICH_KEY_HYPRCTL="$fake_hyprctl" \
+  OMARCHY_TEST_HYPRCTL_LOG="$hyprctl_log" \
+  OMARCHY_WHICH_KEY_HYPR_CONFIG="$config" "$repo_root/scripts/sync-keymap"
+}
+installed="$(<"$config")"
+assert_equal "unchanged" "$(sync_keymap)" "a current hook should be left alone"
+test ! -e "$hyprctl_log"
+sed -i 's/\[62\] = { name = "shift_2", bit = 1 }/[62] = { name = "shift_2", bit = 4 }/' "$config"
+assert_equal "updated" "$(sync_keymap)" "a stale hook should be rewritten"
+assert_equal "reload" "$(<"$hyprctl_log")" "a rewritten hook needs a reload"
+assert_equal "$installed" "$(<"$config")" "the rewrite should match a fresh install"
+assert_equal "unchanged" "$(sync_keymap)" "the reload's own sync should find nothing to do"
+
 OMARCHY_WHICH_KEY_SHELL="$fake_shell" \
 OMARCHY_WHICH_KEY_TEST_LOG="$shell_log" \
   "$repo_root/scripts/which-key-trigger" state 1 64
@@ -166,5 +188,9 @@ test ! -e "${config}.omarchy-which-key.state"
 OMARCHY_WHICH_KEY_HYPR_CONFIG="$config" "$repo_root/scripts/uninstall-bindings"
 assert_equal "$original_contents" "$(<"$config")" \
   "second uninstall should be a no-op"
+
+# Without the integration, the sync touches nothing.
+assert_equal "disabled" "$(sync_keymap)" "a disabled integration should stay disabled"
+assert_equal "$original_contents" "$(<"$config")" "sync must not install the hook"
 
 printf 'install tests passed\n'

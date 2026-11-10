@@ -2,6 +2,16 @@
 
 set -euo pipefail
 
+# With --if-changed, the hook is rewritten only when the result differs from
+# what is installed (a new XKB layout or kb_options), and the script prints
+# "updated" or "unchanged" so a caller knows whether to reload Hyprland.
+if_changed=0
+case "${1-}" in
+  --if-changed) if_changed=1 ;;
+  "") ;;
+  *) printf 'usage: install-bindings [--if-changed]\n' >&2; exit 64 ;;
+esac
+
 begin_marker='-- omarchy-which-key:begin'
 end_marker='-- omarchy-which-key:end'
 config="${OMARCHY_WHICH_KEY_HYPR_CONFIG:-${HOME}/.config/hypr/bindings.lua}"
@@ -115,6 +125,12 @@ awk -v begin="$begin_marker" -v end="$end_marker" '
   printf '%s\n' "$end_marker"
 } >>"$temporary"
 
+if (( if_changed )) && cmp -s -- "$temporary" "$config"; then
+  printf 'unchanged\n'
+  exit 0
+fi
+
 chmod --reference="$config" "$temporary"
 mv -f -- "$temporary" "$config"
 trap - EXIT
+if (( if_changed )); then printf 'updated\n'; fi

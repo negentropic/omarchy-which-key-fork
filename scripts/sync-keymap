@@ -1,0 +1,23 @@
+#!/bin/bash
+set -euo pipefail
+
+# Keeps the installed hook in step with the active XKB keymap. Run by the
+# guide when the shell starts and after every Hyprland config reload: if the
+# integration is enabled and the modifier keys it watches have changed (a new
+# layout or kb_options), the hook is rewritten and Hyprland reloaded. The
+# reload this causes runs the check again, which then finds nothing to do.
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+config="${OMARCHY_WHICH_KEY_HYPR_CONFIG:-${HOME}/.config/hypr/bindings.lua}"
+hyprctl_command="${OMARCHY_WHICH_KEY_HYPRCTL:-hyprctl}"
+
+if [[ -L "$config" || ! -f "$config" ]] \
+  || ! grep -Fqx -- '-- omarchy-which-key:begin' "$config"; then
+  printf 'disabled\n'
+  exit 0
+fi
+
+result="$("$repo_root/scripts/install-bindings" --if-changed)"
+if [[ "$result" == updated ]]; then
+  "$hyprctl_command" reload >/dev/null
+fi
+printf '%s\n' "$result"

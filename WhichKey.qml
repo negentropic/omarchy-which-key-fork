@@ -239,12 +239,47 @@ Item {
     }
   }
 
+  // The modifier keys the hook watches are read from the XKB keymap when the
+  // integration is enabled. When the layout or kb_options change, the helper
+  // rewrites the hook (and reloads Hyprland); otherwise it changes nothing.
+  function syncKeymap() {
+    if (!sourceDir) return
+    if (keymapProcess.running) {
+      keymapProcess.again = true
+      return
+    }
+    keymapProcess.command = [sourceDir + "/scripts/sync-keymap"]
+    keymapProcess.running = true
+  }
+
+  Process {
+    id: keymapProcess
+    property bool again: false
+    command: []
+    running: false
+    stdout: StdioCollector { id: keymapStdout; waitForEnd: true }
+    stderr: StdioCollector { id: keymapStderr; waitForEnd: true }
+
+    onExited: function(exitCode) {
+      if (exitCode !== 0)
+        console.warn("negentropic.which-key: keymap sync failed:",
+          Model.clampMessage(keymapStderr.text))
+      else if (Model.clampMessage(keymapStdout.text) === "updated")
+        console.info("negentropic.which-key: keymap changed; hook rewritten")
+      if (again) {
+        again = false
+        Qt.callLater(root.syncKeymap)
+      }
+    }
+  }
+
   Connections {
     target: Hyprland
     function onRawEvent(event) {
       if (event.name === "configreloaded") {
         root.bindingsStale = true
         root.requestBindings()
+        root.syncKeymap()
       } else if (event.name === "submap") {
         root.currentSubmap = String(event.data || "")
         root.rebuildModel()
@@ -254,7 +289,10 @@ Item {
   }
 
   // Load ahead of the first chord, so even the first Super shows at once.
-  Component.onCompleted: requestBindings()
+  Component.onCompleted: {
+    requestBindings()
+    syncKeymap()
+  }
 
   IpcHandler {
     target: "negentropic.which-key"

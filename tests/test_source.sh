@@ -183,6 +183,8 @@ grep -Fq 'scripts/which-key-bindings' WhichKey.qml
 grep -Fq 'event.name === "configreloaded"' WhichKey.qml
 grep -Fq 'event.name === "submap"' WhichKey.qml
 grep -Fq 'submap: currentSubmap' WhichKey.qml
+grep -Fq 'scripts/sync-keymap' WhichKey.qml
+test -x scripts/sync-keymap
 grep -Fq 'Color.urgent' components/WhichKeyCard.qml
 
 if grep -Eq 'WlrKeyboardFocus\.(Exclusive|OnDemand)' WhichKey.qml; then
