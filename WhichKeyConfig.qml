@@ -10,6 +10,7 @@ QtObject {
   property string sourceDir: ""
   property int delayMs: 200
   property var enabledMasks: Settings.DEFAULT_MASKS.slice()
+  property bool compact: true
   property bool loaded: false
   property string error: ""
 
@@ -38,7 +39,14 @@ QtObject {
     { mask: 69, label: "SUPER + SHIFT + CTRL" },
     { mask: 73, label: "SUPER + SHIFT + ALT" },
     { mask: 76, label: "SUPER + CTRL + ALT" },
-    { mask: 77, label: "SUPER + SHIFT + CTRL + ALT" }
+    { mask: 77, label: "SUPER + SHIFT + CTRL + ALT" },
+    { mask: 8, label: "ALT" },
+    { mask: 9, label: "SHIFT + ALT" },
+    { mask: 12, label: "CTRL + ALT" },
+    { mask: 13, label: "SHIFT + CTRL + ALT" },
+    { mask: 1, label: "SHIFT" },
+    { mask: 4, label: "CTRL" },
+    { mask: 5, label: "SHIFT + CTRL" }
   ]
 
   function reload() {
@@ -59,9 +67,10 @@ QtObject {
       try { value = JSON.parse(text) }
       catch (exception) { error = "Settings file is invalid; defaults are active." }
     }
-    var normalized = Settings.normalize(value)
+    var normalized = Settings.normalize(Settings.migrate(value))
     delayMs = normalized.delayMs
     enabledMasks = normalized.enabledMasks
+    compact = normalized.compact
     loaded = true
   }
 
@@ -79,7 +88,8 @@ QtObject {
   }
 
   function startWrite() {
-    writeProcess.command = [helper, "write", String(delayMs), enabledMasks.join(",")]
+    writeProcess.command = [helper, "write", String(delayMs), enabledMasks.join(","),
+      compact ? "true" : "false"]
     writeProcess.running = true
   }
 
@@ -88,12 +98,17 @@ QtObject {
     save()
   }
 
+  function setCompact(value) {
+    compact = value === true
+    save()
+  }
+
   function setMask(mask, enabled) {
     enabledMasks = Settings.toggleMask(enabledMasks, mask, enabled)
     save()
   }
 
-  function selectAll() { enabledMasks = Settings.DEFAULT_MASKS.slice(); save() }
+  function selectAll() { enabledMasks = Settings.KNOWN_MASKS.slice(); save() }
   function clearAll() { enabledMasks = []; save() }
   function maskEnabled(mask) { return Settings.maskEnabled(enabledMasks, mask) }
 

@@ -1,6 +1,36 @@
 .pragma library
 
-var DEFAULT_MASKS = [64, 65, 68, 72, 69, 73, 76, 77]
+// Every modifier layer the guide can show, in settings order: the Super layers
+// first, then layers without Super (Alt+Tab, Ctrl+Alt+Delete, ...).
+var KNOWN_MASKS = [64, 65, 68, 72, 69, 73, 76, 77, 8, 9, 12, 13, 1, 4, 5]
+
+// Layers on by default. Shift, Ctrl and Shift+Ctrl alone stay off: they are
+// held while typing and selecting, and their only bindings are media variants.
+var DEFAULT_MASKS = [64, 65, 68, 72, 69, 73, 76, 77, 8, 9, 12, 13]
+
+// Layers added in settings version 2. A version 1 file predates them, so they
+// are switched on for it once instead of reading as deliberately disabled.
+var SETTINGS_VERSION = 2
+var VERSION_2_MASKS = [8, 9, 12, 13]
+
+// Layers without Super open only after a longer hold, whatever the configured
+// delay, so a quick Ctrl+C or Alt+Tab never flashes the guide.
+var NON_SUPER_MIN_DELAY_MS = 500
+
+function isSuperMask(mask) {
+  return (Number(mask) & 64) !== 0
+}
+
+function migrate(value) {
+  var source = value && typeof value === "object" ? value : {}
+  if (Number(source.version) >= SETTINGS_VERSION || !Array.isArray(source.enabledMasks))
+    return source
+  var migrated = {}
+  for (var key in source) migrated[key] = source[key]
+  migrated.enabledMasks = source.enabledMasks.concat(VERSION_2_MASKS)
+  migrated.version = SETTINGS_VERSION
+  return migrated
+}
 
 // The helper already refuses anything past its byte ceiling, so this is the
 // second half of the same contract: whatever reaches the shell is checked again
@@ -19,18 +49,20 @@ function normalize(value) {
 
   var requested = Array.isArray(source.enabledMasks) ? source.enabledMasks : DEFAULT_MASKS
   var enabled = []
-  for (var index = 0; index < DEFAULT_MASKS.length; index++) {
-    var mask = DEFAULT_MASKS[index]
+  for (var index = 0; index < KNOWN_MASKS.length; index++) {
+    var mask = KNOWN_MASKS[index]
     if (requested.indexOf(mask) !== -1) enabled.push(mask)
   }
-  return { delayMs: delay, enabledMasks: enabled }
+  // Compact rows (1–0, ← → ↑ ↓, pairs) are on unless explicitly turned off.
+  var compact = source.compact !== false
+  return { delayMs: delay, enabledMasks: enabled, compact: compact }
 }
 
 function toggleMask(masks, mask, enabled) {
   var current = normalize({ enabledMasks: masks }).enabledMasks
   var next = []
-  for (var index = 0; index < DEFAULT_MASKS.length; index++) {
-    var candidate = DEFAULT_MASKS[index]
+  for (var index = 0; index < KNOWN_MASKS.length; index++) {
+    var candidate = KNOWN_MASKS[index]
     if (candidate === Number(mask) ? enabled : current.indexOf(candidate) !== -1)
       next.push(candidate)
   }

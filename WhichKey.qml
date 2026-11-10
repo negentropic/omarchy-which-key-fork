@@ -7,6 +7,7 @@ import qs.Commons
 import qs.Ui
 import "components"
 import "WhichKeyModel.js" as Model
+import "WhichKeySettings.js" as Settings
 
 Item {
   id: root
@@ -19,16 +20,22 @@ Item {
   property int modifierMask: 0
   property var bindings: []
   property var viewModel: ({ title: "NONE", rows: [], columns: [] })
-  property var heldSuperKeys: ({})
+  property bool held: false
   property bool bindingsReady: false
+  property bool loadStarted: false
   property bool revealDue: false
+  property bool nonSuperDue: false
   property int pendingLoadGeneration: 0
   property int lastEventSequence: 0
+
+  // Any of Super, Shift, Ctrl or Alt starts a chord the guide can describe.
+  readonly property int modifierBits: 64 | 1 | 4 | 8
 
   WhichKeyConfig { id: config; sourceDir: root.sourceDir }
   Connections {
     target: config
     function onEnabledMasksChanged() { root.maybeReveal() }
+    function onCompactChanged() { root.rebuildModel(); root.maybeReveal() }
   }
 
   // Resolve this component's own directory rather than reading
@@ -44,8 +51,6 @@ Item {
     if (value.indexOf("file://") === 0) value = value.substring(7)
     try { return decodeURIComponent(value) } catch (error) { return value }
   }
-  readonly property bool superHeld: heldSuperKeys.super_l === true
-    || heldSuperKeys.super_r === true
   readonly property string focusedScreenName: Hyprland.focusedMonitor
     ? String(Hyprland.focusedMonitor.name) : ""
 
@@ -53,61 +58,51 @@ Item {
     opened = false
   }
 
-  function copyHeldKeys() {
-    var copy = {}
-    for (var key in heldSuperKeys) copy[key] = heldSuperKeys[key]
-    return copy
-  }
-
-  function pressSuper(key) {
-    var name = String(key || "")
-    if ((name !== "super_l" && name !== "super_r") || heldSuperKeys[name] === true)
-      return
-
-    var wasHeld = superHeld
-    var next = copyHeldKeys()
-    next[name] = true
-    heldSuperKeys = next
-    modifierMask = modifierMask | 64
-
-    if (wasHeld) return
-
+  function beginChord() {
+    held = true
     generation += 1
     opened = false
     bindingsReady = false
+    loadStarted = false
     revealDue = false
+    nonSuperDue = false
     bindings = []
     rebuildModel()
     revealTimer.restart()
+    nonSuperTimer.restart()
+  }
+
+  function endChord() {
+    held = false
+    generation += 1
+    revealTimer.stop()
+    nonSuperTimer.stop()
+    revealDue = false
+    nonSuperDue = false
+    bindingsReady = false
+    loadStarted = false
+    pendingLoadGeneration = 0
+    if (bindingProcess.running) bindingProcess.running = false
+    close()
+  }
+
+  // Loading spawns helper processes, so a chord without Super waits until it
+  // has been held long enough to show anything: a quick Ctrl+C costs nothing.
+  function ensureLoading() {
+    if (!held || loadStarted) return
+    if ((modifierMask & 64) === 0 && !nonSuperDue) return
+    loadStarted = true
     // The bar widget owns a separate config instance and the file is no longer
     // watched, so the guide re-reads its settings as each chord starts.
     config.reload()
     requestBindings(generation)
   }
 
-  function releaseSuper(key) {
-    var name = String(key || "")
-    if (heldSuperKeys[name] !== true) return
-
-    var next = copyHeldKeys()
-    delete next[name]
-    heldSuperKeys = next
-    if (superHeld) return
-
-    generation += 1
-    modifierMask = modifierMask & ~64
-    revealTimer.stop()
-    revealDue = false
-    bindingsReady = false
-    pendingLoadGeneration = 0
-    if (bindingProcess.running) bindingProcess.running = false
-    close()
-  }
-
   function setModifiers(mask) {
     var numericMask = Number(mask)
     if (!isFinite(numericMask) || numericMask < 0) return
     modifierMask = Math.floor(numericMask)
+    ensureLoading()
     rebuildModel()
     maybeReveal()
   }
@@ -119,18 +114,25 @@ Item {
         || nextSequence <= lastEventSequence) return
     lastEventSequence = nextSequence
 
-    var shouldHold = (nextMask & 64) !== 0
-    if (shouldHold && !superHeld) pressSuper("super_l")
-    else if (!shouldHold && superHeld) releaseSuper("super_l")
+    var shouldHold = (Math.floor(nextMask) & modifierBits) !== 0
+    if (shouldHold && !held) {
+      modifierMask = Math.floor(nextMask)
+      beginChord()
+    } else if (!shouldHold && held) {
+      endChord()
+    }
     setModifiers(nextMask)
   }
 
   function rebuildModel() {
-    viewModel = Model.buildRows(bindings, modifierMask, { maxRowsPerColumn: 16 })
+    viewModel = Model.buildRows(bindings, modifierMask,
+      { maxRowsPerColumn: 16, compact: config.compact })
   }
 
   function maybeReveal() {
-    opened = revealDue && superHeld && config.maskEnabled(modifierMask) && bindingsReady
+    var withSuper = (modifierMask & 64) !== 0
+    opened = held && revealDue && (withSuper || nonSuperDue)
+      && config.maskEnabled(modifierMask) && bindingsReady
       && viewModel && ((viewModel.rows && viewModel.rows.length > 0)
         || (viewModel.branches && viewModel.branches.length > 0))
   }
@@ -156,7 +158,7 @@ Item {
   }
 
   function acceptBindingOutput(requestGeneration, output) {
-    if (!Model.isCurrentGeneration(generation, requestGeneration) || !superHeld)
+    if (!Model.isCurrentGeneration(generation, requestGeneration) || !held)
       return
 
     var payload = String(output || "")
@@ -190,6 +192,18 @@ Item {
     }
   }
 
+  // Chords without Super reveal (and load) only after a longer hold.
+  Timer {
+    id: nonSuperTimer
+    interval: Math.max(config.delayMs, Settings.NON_SUPER_MIN_DELAY_MS)
+    repeat: false
+    onTriggered: {
+      root.nonSuperDue = true
+      root.ensureLoading()
+      root.maybeReveal()
+    }
+  }
+
   Process {
     id: bindingProcess
     property int loadGeneration: 0
@@ -206,7 +220,7 @@ Item {
       if (exitCode === 0)
         root.acceptBindingOutput(completedGeneration, bindingStdout.text)
       else if (Model.isCurrentGeneration(root.generation, completedGeneration)
-          && root.superHeld && nextGeneration === 0)
+          && root.held && nextGeneration === 0)
         console.warn("negentropic.which-key: binding load failed:",
           Model.clampMessage(bindingStderr.text))
 

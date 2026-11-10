@@ -22,8 +22,54 @@ var KEY_LABELS = {
   HOME: "Home",
   END: "End",
   PAGEUP: "Page Up",
-  PAGEDOWN: "Page Down"
+  PAGEDOWN: "Page Down",
+  INSERT: "Insert",
+  PRINT: "Print",
+  SLASH: "/",
+  BACKSLASH: "\\",
+  COMMA: ",",
+  PERIOD: ".",
+  GRAVE: "`",
+  MINUS: "-",
+  EQUAL: "=",
+  SEMICOLON: ";",
+  APOSTROPHE: "'",
+  BRACKETLEFT: "[",
+  BRACKETRIGHT: "]",
+  MOUSE_UP: "Scroll ↑",
+  MOUSE_DOWN: "Scroll ↓",
+  MOUSE_LEFT: "Scroll ←",
+  MOUSE_RIGHT: "Scroll →",
+  ALT_L: "Left Alt",
+  ALT_R: "Right Alt",
+  CONTROL_L: "Left Ctrl",
+  CONTROL_R: "Right Ctrl",
+  SHIFT_L: "Left Shift",
+  SHIFT_R: "Right Shift",
+  SUPER_L: "Left Super",
+  SUPER_R: "Right Super",
+  XF86AUDIORAISEVOLUME: "Vol +",
+  XF86AUDIOLOWERVOLUME: "Vol −",
+  XF86AUDIOMUTE: "Mute",
+  XF86AUDIOMICMUTE: "Mic Mute",
+  XF86AUDIOPLAY: "Play",
+  XF86AUDIOPAUSE: "Pause",
+  XF86AUDIONEXT: "Next",
+  XF86AUDIOPREV: "Prev",
+  XF86MONBRIGHTNESSUP: "Bright +",
+  XF86MONBRIGHTNESSDOWN: "Bright −",
+  XF86KBDBRIGHTNESSUP: "Kbd Light +",
+  XF86KBDBRIGHTNESSDOWN: "Kbd Light −",
+  XF86KBDLIGHTONOFF: "Kbd Light",
+  XF86POWEROFF: "Power",
+  XF86EJECT: "Eject",
+  XF86CALCULATOR: "Calculator",
+  XF86TOUCHPADTOGGLE: "Touchpad",
+  XF86TOUCHPADON: "Touchpad On",
+  XF86TOUCHPADOFF: "Touchpad Off"
 }
+
+var MOUSE_LABELS = { 272: "Left Mouse", 273: "Right Mouse", 274: "Middle Mouse" }
 
 // Hyprland exposes physical-code bindings as XKB keycodes (evdev code + 8).
 // Convert the standard keyboard range so the guide never leaks `code:NN`.
@@ -57,6 +103,8 @@ for (var numberCode = 10; numberCode <= 19; numberCode++)
   XKB_KEY_LABELS[numberCode] = numberCode === 19 ? "0" : String(numberCode - 9)
 for (var functionCode = 67; functionCode <= 76; functionCode++)
   XKB_KEY_LABELS[functionCode] = "F" + String(functionCode - 66)
+for (var highFunctionCode = 191; highFunctionCode <= 202; highFunctionCode++)
+  XKB_KEY_LABELS[highFunctionCode] = "F" + String(highFunctionCode - 178)
 XKB_KEY_LABELS[95] = "F11"
 XKB_KEY_LABELS[96] = "F12"
 
@@ -126,8 +174,14 @@ function keyLabel(key, keycode) {
   var mouseMatch = /^mouse:(\d+)$/i.exec(raw)
   if (mouseMatch) {
     var button = Number(mouseMatch[1])
+    if (MOUSE_LABELS[button]) return MOUSE_LABELS[button]
     if (button >= 272 && button <= 279) return "Mouse " + (button - 271)
   }
+
+  // Remaining XF86 media keys read as words: XF86AudioStop -> "Audio Stop".
+  var mediaMatch = /^XF86(.+)$/i.exec(raw)
+  if (mediaMatch)
+    return mediaMatch[1].replace(/([a-z])([A-Z0-9])/g, "$1 $2")
 
   return raw
 }
@@ -146,27 +200,331 @@ function isSpecialKey(key) {
   return !/^[A-Za-z0-9]$/.test(String(key || ""))
 }
 
-function specialRank(row) {
-  if (!row.special) return 0
-  if (/^(code|mouse):/i.test(row.key)) return 2
-  return 1
+// Rows are grouped by the kind of key so the grid reads in a predictable
+// order: letters, the number row, arrows, other named keys, function keys,
+// mouse, then media keys.
+var GROUP_LETTERS = 0
+var GROUP_NUMBERS = 1
+var GROUP_ARROWS = 2
+var GROUP_OTHER = 3
+var GROUP_FUNCTION = 4
+var GROUP_MOUSE = 5
+var GROUP_MEDIA = 6
+var ARROW_ORDER = ["←", "→", "↑", "↓"]
+
+function keyGroup(key, label) {
+  var rawKey = String(key || "")
+  var text = String(label || "")
+  if (/^(mouse:|mouse_)/i.test(rawKey)) return GROUP_MOUSE
+  if (/^XF86/i.test(rawKey)) return GROUP_MEDIA
+  if (/^[A-Za-z]$/.test(text)) return GROUP_LETTERS
+  if (/^[0-9]$/.test(text)) return GROUP_NUMBERS
+  if (ARROW_ORDER.indexOf(text) !== -1) return GROUP_ARROWS
+  if (/^F[0-9]+$/.test(text)) return GROUP_FUNCTION
+  return GROUP_OTHER
+}
+
+function groupPosition(row) {
+  // A collapsed row sorts where its first key would.
+  var label = row.sortKey || row.label
+  if (row.group === GROUP_NUMBERS) return label === "0" ? 10 : Number(label)
+  if (row.group === GROUP_ARROWS) return ARROW_ORDER.indexOf(label)
+  if (row.group === GROUP_FUNCTION) return Number(label.substring(1))
+  return 0
 }
 
 function compareRows(left, right) {
-  var rankDifference = specialRank(left) - specialRank(right)
-  if (rankDifference !== 0) return rankDifference
+  if (left.group !== right.group) return left.group - right.group
 
-  return String(left.label).localeCompare(String(right.label), undefined, {
+  var positionDifference = groupPosition(left) - groupPosition(right)
+  if (positionDifference !== 0) return positionDifference
+
+  var byLabel = String(left.sortKey || left.label).localeCompare(String(right.sortKey || right.label), undefined, {
     numeric: true,
     sensitivity: "base"
   })
+  if (byLabel !== 0) return byLabel
+  return String(left.description).localeCompare(String(right.description))
 }
 
+// Spread rows evenly across the fewest columns that respect the maximum, so
+// the last column is never a short leftover.
 function chunkRows(rows, maximum) {
   var columns = []
-  for (var index = 0; index < rows.length; index += maximum)
-    columns.push(rows.slice(index, index + maximum))
+  if (rows.length === 0) return columns
+  var count = Math.ceil(rows.length / maximum)
+  var perColumn = Math.ceil(rows.length / count)
+  for (var index = 0; index < rows.length; index += perColumn)
+    columns.push(rows.slice(index, index + perColumn))
   return columns
+}
+
+// One key can carry several bindings: a press/release pair (push-to-talk), or
+// two actions chained on the same chord (focus, then raise). Each key is shown
+// once; release halves are dropped when a press exists and the remaining
+// descriptions are joined. `duplicate` marks a key with several press actions.
+function mergeRows(rows) {
+  var merged = []
+  var byIdentity = {}
+  for (var index = 0; index < rows.length; index++) {
+    var row = rows[index]
+    var identity = row.label + "\u001f" + row.submap
+    var entry = byIdentity[identity]
+    if (!entry) {
+      entry = { row: row, presses: [], releases: [] }
+      byIdentity[identity] = entry
+      merged.push(entry)
+    }
+    var list = row.release ? entry.releases : entry.presses
+    if (list.indexOf(row.description) === -1) list.push(row.description)
+  }
+
+  var result = []
+  for (var mergedIndex = 0; mergedIndex < merged.length; mergedIndex++) {
+    var current = merged[mergedIndex]
+    var descriptions = current.presses.length > 0 ? current.presses : current.releases
+    var output = {}
+    for (var field in current.row) output[field] = current.row[field]
+    output.description = joinDescriptions(descriptions)
+    output.duplicate = descriptions.length > 1
+    output.release = current.presses.length === 0
+    result.push(output)
+  }
+  return result
+}
+
+// ---------------------------------------------------------------------------
+// Compact rows: keys that do the same thing and differ only by a number, a
+// direction or an opposite word are shown as one row. Each rule is generic
+// and conservative; a row that fits no pattern is left exactly as it was.
+
+function copyRow(row) {
+  var copy = {}
+  for (var field in row) copy[field] = row[field]
+  return copy
+}
+
+function combinedRow(members, label, description) {
+  var row = copyRow(members[0])
+  row.label = label
+  row.description = description
+  row.sortKey = members[0].label
+  row.keys = members.map(function(member) { return member.key })
+  row.duplicate = false
+  for (var index = 0; index < members.length; index++)
+    if (members[index].duplicate) row.duplicate = true
+  return row
+}
+
+function numberPosition(label) {
+  return label === "0" ? 10 : Number(label)
+}
+
+// "Switch to workspace 1" ... "Switch to workspace 10" on keys 1..0 become
+// one "1–0  Switch to workspace" row. The trailing number must match the key.
+function collapseNumbers(rows) {
+  var buckets = {}
+  var order = []
+  var rest = []
+  for (var index = 0; index < rows.length; index++) {
+    var row = rows[index]
+    var match = row.group === GROUP_NUMBERS ? /^(.*\S)\s+(\d+)$/.exec(row.description) : null
+    if (!match || Number(match[2]) !== numberPosition(row.label)) {
+      rest.push(row)
+      continue
+    }
+    var identity = match[1] + "\u001f" + row.submap
+    if (!buckets[identity]) {
+      buckets[identity] = { prefix: match[1], members: [] }
+      order.push(identity)
+    }
+    buckets[identity].members.push(row)
+  }
+
+  for (var orderIndex = 0; orderIndex < order.length; orderIndex++) {
+    var bucket = buckets[order[orderIndex]]
+    var members = bucket.members
+    if (members.length < 2) {
+      rest = rest.concat(members)
+      continue
+    }
+    members.sort(function(left, right) {
+      return numberPosition(left.label) - numberPosition(right.label)
+    })
+    var contiguous = true
+    for (var memberIndex = 1; memberIndex < members.length; memberIndex++)
+      if (numberPosition(members[memberIndex].label)
+          !== numberPosition(members[memberIndex - 1].label) + 1) contiguous = false
+    // Only an unbroken run reads well as a range; "1 3" is no clearer than
+    // two rows, so a set with gaps is left as it was.
+    if (!contiguous) {
+      rest = rest.concat(members)
+      continue
+    }
+    var label = members[0].label + "–" + members[members.length - 1].label
+    rest.push(combinedRow(members, label, bucket.prefix))
+  }
+  return rest
+}
+
+var DIRECTION_WORDS = ["left", "right", "up", "down", "above", "below", "top", "bottom"]
+
+// Removes the direction word from an arrow key's description, with the small
+// words that only made sense next to it: "Focus on left window" -> "Focus
+// window", "Swap window to the left" -> "Swap window", "Move window to group
+// on top" -> "Move window to group". "to" survives mid-sentence, so "Move
+// window to left monitor" -> "Move window to monitor".
+function stripDirection(description) {
+  var words = String(description).split(/\s+/)
+  var found = -1
+  for (var index = 0; index < words.length; index++) {
+    if (DIRECTION_WORDS.indexOf(words[index].toLowerCase()) !== -1) {
+      if (found !== -1) return null
+      found = index
+    }
+  }
+  if (found === -1) return null
+
+  var last = found === words.length - 1
+  var before = words.slice(0, found)
+  var after = words.slice(found + 1)
+  if (before.length > 0 && before[before.length - 1].toLowerCase() === "the") before.pop()
+  if (before.length > 0 && before[before.length - 1].toLowerCase() === "on") before.pop()
+  if (last && before.length > 0 && before[before.length - 1].toLowerCase() === "to") before.pop()
+  var result = before.concat(after).join(" ").trim()
+  return result || null
+}
+
+function collapseArrows(rows) {
+  var buckets = {}
+  var order = []
+  var rest = []
+  for (var index = 0; index < rows.length; index++) {
+    var row = rows[index]
+    var stripped = row.group === GROUP_ARROWS ? stripDirection(row.description) : null
+    if (!stripped) {
+      rest.push(row)
+      continue
+    }
+    var identity = stripped + "\u001f" + row.submap
+    if (!buckets[identity]) {
+      buckets[identity] = { description: stripped, members: [] }
+      order.push(identity)
+    }
+    buckets[identity].members.push(row)
+  }
+
+  for (var orderIndex = 0; orderIndex < order.length; orderIndex++) {
+    var bucket = buckets[order[orderIndex]]
+    var members = bucket.members
+    if (members.length < 2) {
+      rest = rest.concat(members)
+      continue
+    }
+    members.sort(function(left, right) {
+      return ARROW_ORDER.indexOf(left.label) - ARROW_ORDER.indexOf(right.label)
+    })
+    var label = members.map(function(member) { return member.label }).join(" ")
+    rest.push(combinedRow(members, label, bucket.description))
+  }
+  return rest
+}
+
+var OPPOSITE_PAIRS = [
+  ["up", "down"], ["forward", "backward"], ["next", "previous"],
+  ["expand", "shrink"], ["smaller", "larger"], ["in", "out"],
+  ["increase", "decrease"], ["raise", "lower"], ["maximum", "minimum"],
+  ["more", "less"], ["on", "off"], ["show", "hide"], ["prev", "next"],
+  ["bigger", "smaller"], ["back", "forward"], ["start", "stop"]
+]
+
+function areOpposites(left, right) {
+  var a = left.toLowerCase()
+  var b = right.toLowerCase()
+  for (var index = 0; index < OPPOSITE_PAIRS.length; index++) {
+    var pair = OPPOSITE_PAIRS[index]
+    if ((pair[0] === a && pair[1] === b) || (pair[0] === b && pair[1] === a)) return true
+  }
+  return false
+}
+
+// The index of the one word two descriptions disagree on, when that word is
+// an opposite pair (up/down, expand/shrink, ...); -1 otherwise.
+function oppositeWordIndex(left, right) {
+  var a = String(left).split(/\s+/)
+  var b = String(right).split(/\s+/)
+  if (a.length !== b.length) return -1
+  var found = -1
+  for (var index = 0; index < a.length; index++) {
+    if (a[index].toLowerCase() === b[index].toLowerCase()) continue
+    if (found !== -1) return -1
+    found = index
+  }
+  return found !== -1 && areOpposites(a[found], b[found]) ? found : -1
+}
+
+// "Vol +" and "Vol −" -> "Vol ±"; "Scroll ↑" and "Scroll ↓" -> "Scroll ↑↓";
+// keys without a shared word are listed side by side: "- =".
+function pairLabel(first, second) {
+  var a = /^(.+)\s(\S+)$/.exec(first)
+  var b = /^(.+)\s(\S+)$/.exec(second)
+  if (a && b && a[1] === b[1]) {
+    var signs = [a[2], b[2]].sort().join("")
+    if (signs === "+−" || signs === "+-") return a[1] + " ±"
+    return a[1] + " " + a[2] + b[2]
+  }
+  return first + " " + second
+}
+
+function collapsePairs(rows) {
+  var sorted = rows.slice().sort(compareRows)
+  var used = []
+  var result = []
+  for (var index = 0; index < sorted.length; index++) {
+    if (used[index]) continue
+    var row = sorted[index]
+    var partner = -1
+    var wordIndex = -1
+    if (!row.keys) {
+      for (var other = index + 1; other < sorted.length; other++) {
+        // Only keys of the same kind pair up (- with =, Vol + with Vol −), so
+        // an unrelated key never borrows a meaning: Tab is not half of a scroll.
+        if (used[other] || sorted[other].keys || sorted[other].submap !== row.submap
+            || sorted[other].group !== row.group) continue
+        wordIndex = oppositeWordIndex(row.description, sorted[other].description)
+        if (wordIndex !== -1) { partner = other; break }
+      }
+    }
+    if (partner === -1) {
+      result.push(row)
+      continue
+    }
+    used[partner] = true
+    var mate = sorted[partner]
+    var words = row.description.split(/\s+/)
+    var mateWord = mate.description.split(/\s+/)[wordIndex]
+    words[wordIndex] = words[wordIndex] + "/" + mateWord.toLowerCase()
+    result.push(combinedRow([row, mate], pairLabel(row.label, mate.label), words.join(" ")))
+  }
+  return result
+}
+
+function compactRows(rows) {
+  return collapsePairs(collapseArrows(collapseNumbers(rows)))
+}
+
+// Hyprland reports a Lua press/release pair as two plain bindings, so a pair
+// such as "Start dictation" / "Stop dictation" is recognised by its wording:
+// descriptions that differ only in their first word become "Start/stop
+// dictation". Anything else is listed in full.
+function joinDescriptions(descriptions) {
+  if (descriptions.length === 2) {
+    var first = /^(\S+)\s+(.+)$/.exec(descriptions[0])
+    var second = /^(\S+)\s+(.+)$/.exec(descriptions[1])
+    if (first && second && first[2] === second[2])
+      return first[1] + "/" + second[1].toLowerCase() + " " + first[2]
+  }
+  return descriptions.join(" · ")
 }
 
 function buildRows(bindings, modifierMask, options) {
@@ -189,6 +547,8 @@ function buildRows(bindings, modifierMask, options) {
       description: description,
       duplicate: false,
       special: isSpecialKey(key),
+      group: keyGroup(key, label),
+      groupStart: false,
       keycode: Number(binding.keycode) || 0,
       submap: String(binding.submap || ""),
       release: binding.release === true,
@@ -196,13 +556,17 @@ function buildRows(bindings, modifierMask, options) {
     })
   }
 
-  var counts = {}
-  for (var countIndex = 0; countIndex < rows.length; countIndex++) {
-    var identity = rows[countIndex].key.toUpperCase()
-    counts[identity] = (counts[identity] || 0) + 1
+  rows = mergeRows(rows)
+  if (!options || options.compact !== false) rows = compactRows(rows)
+  rows.sort(compareRows)
+
+  var widestLabel = ""
+  for (var markIndex = 0; markIndex < rows.length; markIndex++) {
+    rows[markIndex].groupStart = markIndex > 0
+      && rows[markIndex].group !== rows[markIndex - 1].group
+    if (rows[markIndex].label.length > widestLabel.length)
+      widestLabel = rows[markIndex].label
   }
-  for (var markIndex = 0; markIndex < rows.length; markIndex++)
-    rows[markIndex].duplicate = counts[rows[markIndex].key.toUpperCase()] > 1
 
   var requestedMaximum = options && Number(options.maxRowsPerColumn)
   var maximum = isFinite(requestedMaximum) && requestedMaximum > 0
@@ -213,18 +577,19 @@ function buildRows(bindings, modifierMask, options) {
     title: modifierTitle(numericMask),
     rows: rows,
     columns: chunkRows(rows, maximum),
+    widestLabel: widestLabel,
     branches: buildBranches(source, numericMask)
   }
 }
 
-var BRANCH_LABELS = { 1: "Shift", 4: "Ctrl", 8: "Alt" }
+var BRANCH_LABELS = { 1: "Shift", 4: "Ctrl", 8: "Alt", 64: "Super" }
 
 // The modifiers that can still be added to the held chord, each with how many
 // described shortcuts lie somewhere beyond it, so the guide can hint at the
 // next step of a combo before it is pressed.
 function buildBranches(source, mask) {
   var branches = []
-  var order = [1, 4, 8]
+  var order = [1, 4, 8, 64]
   for (var orderIndex = 0; orderIndex < order.length; orderIndex++) {
     var bit = order[orderIndex]
     if ((mask & bit) !== 0) continue

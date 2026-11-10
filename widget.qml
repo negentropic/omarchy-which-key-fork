@@ -303,6 +303,15 @@ BarWidget {
             onReleased: function(value) { config.setDelay(value) }
           }
 
+          // Collapses 1..0, arrow keys and opposite pairs into single rows.
+          CompactSettingToggle {
+            width: parent.width
+            label: "Compact rows"
+            checked: config.compact
+            foreground: root.foreground
+            onToggled: config.setCompact(!config.compact)
+          }
+
           PanelSeparator { width: parent.width; foreground: root.foreground }
 
           RowLayout {

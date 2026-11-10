@@ -9,6 +9,17 @@ narrow it. Release Super to close it.
 
 - Shows every shortcut for a combination, laid out in columns of up to 16
   rows (upstream caps the guide at 20 rows in a single column).
+- Also prompts for shortcuts without Super: hold Alt, Shift+Alt, Ctrl+Alt or
+  Shift+Ctrl+Alt (Shift, Ctrl and Shift+Ctrl alone can be switched on in the
+  widget settings). These open after at least 500 ms so quick shortcuts like
+  Ctrl+C never flash the guide.
+- Readable key labels (`/`, `,`, `` ` ``, `Print`, `Scroll ↓`, `Vol +`,
+  `Left Mouse`), rows grouped by kind of key, long descriptions wrapped
+  instead of cut off, and several actions on one key merged into one row.
+- Compact rows: keys that differ only by a number, direction or opposite word
+  share one row (`1–0  Switch to workspace`, `← → ↑ ↓  Focus window`,
+  `- =  Expand/shrink window left`, `Vol ±  Volume up/down`). Turn off
+  **Compact rows** in the widget settings to list every key.
 
 ## Enable
 

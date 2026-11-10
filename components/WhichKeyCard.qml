@@ -28,7 +28,10 @@ BorderSurface {
 
   TextMetrics {
     id: keyMetrics
-    text: "Backspace"
+    // Sized to the widest label in view (never narrower than "Backspace") so
+    // labels like "Scroll ↓" or "Right Mouse" are never cut off.
+    text: card.viewModel && card.viewModel.widestLabel
+      && card.viewModel.widestLabel.length > 9 ? card.viewModel.widestLabel : "Backspace"
     font.family: Style.font.family
     font.pixelSize: Style.font.body
     font.bold: true
@@ -76,11 +79,15 @@ BorderSurface {
 
         delegate: RowLayout {
           required property var modelData
+          required property int index
           spacing: Style.space(6)
+          // A little air where one kind of key ends and the next begins.
+          Layout.topMargin: modelData.groupStart && index > 0 ? Style.space(6) : 0
 
           Text {
             textFormat: Text.PlainText
             Layout.preferredWidth: card.keyWidth
+            Layout.alignment: Qt.AlignTop
             text: modelData.label
             color: Color.accent
             font.family: Style.font.family
@@ -91,14 +98,16 @@ BorderSurface {
 
           Text {
             textFormat: Text.PlainText
-            Layout.fillWidth: true
-            Layout.preferredWidth: Style.space(190)
+            // Natural width up to a cap; longer descriptions wrap onto a second
+            // line instead of being elided.
+            Layout.maximumWidth: Style.space(250)
+            Layout.alignment: Qt.AlignTop
             text: modelData.description
             color: Color.popups.text
             font.family: Style.font.family
             font.pixelSize: Style.font.body
             font.weight: Font.Normal
-            elide: Text.ElideRight
+            wrapMode: Text.Wrap
           }
         }
       }

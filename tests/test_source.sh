@@ -115,7 +115,8 @@ grep -Fq 'readonly property int pad: Style.space(10)' components/WhichKeyCard.qm
 grep -Fq 'readonly property int rowGap: Style.space(4)' components/WhichKeyCard.qml
 grep -Fq 'maxRowsPerColumn: 16' WhichKey.qml
 grep -Fq 'color: Color.accent' components/WhichKeyCard.qml
-grep -Fq 'text: "Backspace"' components/WhichKeyCard.qml
+grep -Fq 'card.viewModel.widestLabel : "Backspace"' components/WhichKeyCard.qml
+grep -Fq 'wrapMode: Text.Wrap' components/WhichKeyCard.qml
 grep -Fq 'Math.ceil(keyMetrics.advanceWidth)' components/WhichKeyCard.qml
 grep -Fq 'font.weight: Font.Normal' components/WhichKeyCard.qml
 test "$(grep -Fc 'color: Color.muted' components/WhichKeyCard.qml)" -eq 1

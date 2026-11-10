@@ -86,8 +86,14 @@ fi
 # install, and lands atomically.
 target="$test_root/fresh/which-key.json"
 OMARCHY_WHICH_KEY_SETTINGS="$target" "$helper" write 250 "64,72"
-jq -e '.version == 1 and .delayMs == 250 and .enabledMasks == [64, 72]' "$target" >/dev/null \
+jq -e '.version == 2 and .delayMs == 250 and .enabledMasks == [64, 72] and .compact == true' "$target" >/dev/null \
   || fail "write should store the requested settings"
+
+OMARCHY_WHICH_KEY_SETTINGS="$target" "$helper" write 250 "64" false
+jq -e '.compact == false' "$target" >/dev/null || fail "write should store compact off"
+if OMARCHY_WHICH_KEY_SETTINGS="$target" "$helper" write 250 "64" maybe 2>/dev/null; then
+  fail "write should reject a non-boolean compact"
+fi
 
 OMARCHY_WHICH_KEY_SETTINGS="$target" "$helper" write 0 ""
 jq -e '.delayMs == 0 and .enabledMasks == []' "$target" >/dev/null \

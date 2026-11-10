@@ -20,7 +20,7 @@ config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
 settings_path="${OMARCHY_WHICH_KEY_SETTINGS:-$config_home/omarchy/which-key.json}"
 
 usage() {
-  printf 'usage: which-key-settings read\n       which-key-settings write <delay-ms> <mask,...>\n' >&2
+  printf 'usage: which-key-settings read\n       which-key-settings write <delay-ms> <mask,...> [compact]\n' >&2
   exit 2
 }
 
@@ -58,7 +58,15 @@ read_settings() {
 }
 
 write_settings() {
-  local delay="${1-}" masks="${2-}"
+  local delay="${1-}" masks="${2-}" compact="${3-true}"
+
+  case "$compact" in
+    true | false) ;;
+    *)
+      printf 'which-key: compact must be true or false\n' >&2
+      return 2
+      ;;
+  esac
 
   case "$delay" in
     "" | *[!0-9]*)
@@ -81,10 +89,11 @@ write_settings() {
   staged="$(mktemp "$directory/.which-key.json.XXXXXX")"
   trap 'rm -f -- "$staged"' RETURN
 
-  jq -n --argjson delay "$delay" --arg masks "$masks" '{
-    version: 1,
+  jq -n --argjson delay "$delay" --arg masks "$masks" --argjson compact "$compact" '{
+    version: 2,
     delayMs: $delay,
-    enabledMasks: ($masks | if . == "" then [] else split(",") | map(tonumber) end)
+    enabledMasks: ($masks | if . == "" then [] else split(",") | map(tonumber) end),
+    compact: $compact
   }' >"$staged"
 
   chmod 0644 -- "$staged"
@@ -97,8 +106,8 @@ case "${1-}" in
     read_settings
     ;;
   write)
-    [ "$#" -eq 3 ] || usage
-    write_settings "$2" "$3"
+    [ "$#" -eq 3 ] || [ "$#" -eq 4 ] || usage
+    write_settings "$2" "$3" "${4-true}"
     ;;
   *)
     usage
