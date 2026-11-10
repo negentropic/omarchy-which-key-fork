@@ -19,7 +19,7 @@ narrow it. Release Super to close it.
 - Rows sorted into headed sections (Apps, Windows, Workspaces, Displays,
   Media & devices, Capture, Notifications, Clipboard, System) by the words in
   their descriptions; anything unmatched counts as an app launcher. Headers
-  may stretch a column a little past 16 lines rather than add a column.
+  stretch a column past 16 lines rather than add a column.
 - Compact rows: keys that differ only by a number, direction or opposite word
   share one row (`1–0  Switch to workspace`, `← → ↑ ↓  Focus window`,
   `- =  Expand/shrink window left`, `Vol ±  Volume up/down`). Turn off

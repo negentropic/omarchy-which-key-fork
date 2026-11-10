@@ -283,7 +283,7 @@ function compareCategorized(left, right) {
 }
 
 // Lays categorized rows into columns, where a section header counts as a
-// line. Headers may stretch a column up to a quarter past `maximum`, so that
+// line. Each header may stretch a column one line past `maximum`, so that
 // sectioning never needs more columns than the same rows would without
 // headers when that is possible. Sections stay whole when they fit in a
 // fresh column; a longer one continues into the next column under a repeated
@@ -304,7 +304,7 @@ function chunkCategorized(rows, maximum) {
   // shortest columns that still fit in that count, so they come out even
   // rather than full ones followed by a short leftover.
   var lines = rows.length + sections.length
-  var cap = Math.max(maximum, Math.ceil(maximum * 1.25))
+  var cap = maximum + sections.length
   var target = Math.max(Math.ceil(rows.length / maximum), packSections(sections, cap).length)
   var limit = Math.min(cap, Math.max(Math.min(maximum, 4), Math.ceil(lines / target)))
   var packed = packSections(sections, limit)

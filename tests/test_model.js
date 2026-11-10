@@ -162,14 +162,26 @@ assert.deepStrictEqual(Array.from(categorized.rows, row => row.category + " | " 
 ])
 // Each column names the section it starts with, and a section that continues
 // into the next column is named again there.
-const sectioned = Model.buildRows(compactSource, 64, { maxRowsPerColumn: 4 }).columns
+const sectioned = Model.buildRows(compactSource, 64, { maxRowsPerColumn: 3 }).columns
 assert.deepStrictEqual(Array.from(sectioned, column => Array.from(column, row => row.header || "·").join(" ")), [
   "Windows · ·",
   "Windows ·",
   "Workspaces Media & devices"
 ])
-// Headers may stretch a column up to a quarter past the maximum (4 -> 5).
-assert.ok(Array.from(sectioned).every(column => column.length + column.filter(row => row.header).length <= 5))
+// Each header may stretch a column one line past the maximum (3 + 3 sections).
+assert.ok(Array.from(sectioned).every(column => column.length + column.filter(row => row.header).length <= 6))
+
+// Rows that fit one column without headers stay in one column with them.
+const oneColumn = []
+for (const letter of "ABCDEFGHIJ") oneColumn.push({ modmask: 64, key: letter, description: "App " + letter })
+oneColumn.push(
+  { modmask: 64, key: "1", description: "Close window" },
+  { modmask: 64, key: "2", description: "Next workspace" },
+  { modmask: 64, key: "3", description: "Zoom in" },
+  { modmask: 64, key: "4", description: "Screenshot" },
+  { modmask: 64, key: "5", description: "Clipboard manager" },
+  { modmask: 64, key: "6", description: "Lock system" })
+assert.strictEqual(Model.buildRows(oneColumn, 64, { maxRowsPerColumn: 16, compact: false }).columns.length, 1)
 
 // Word boundaries keep app names out of the action categories.
 for (const name of ["PowerPoint", "Social media", "Spotify", "Windows VM"])
