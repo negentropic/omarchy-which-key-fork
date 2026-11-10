@@ -11,6 +11,7 @@ QtObject {
   property int delayMs: 200
   property var enabledMasks: Settings.DEFAULT_MASKS.slice()
   property bool compact: true
+  property int dimPercent: Settings.DEFAULT_DIM_PERCENT
   property bool loaded: false
   property string error: ""
 
@@ -71,6 +72,7 @@ QtObject {
     delayMs = normalized.delayMs
     enabledMasks = normalized.enabledMasks
     compact = normalized.compact
+    dimPercent = normalized.dimPercent
     loaded = true
   }
 
@@ -89,12 +91,17 @@ QtObject {
 
   function startWrite() {
     writeProcess.command = [helper, "write", String(delayMs), enabledMasks.join(","),
-      compact ? "true" : "false"]
+      compact ? "true" : "false", String(dimPercent)]
     writeProcess.running = true
   }
 
   function setDelay(value) {
     delayMs = Settings.normalize({ delayMs: value, enabledMasks: enabledMasks }).delayMs
+    save()
+  }
+
+  function setDim(value) {
+    dimPercent = Settings.normalize({ dimPercent: value }).dimPercent
     save()
   }
 

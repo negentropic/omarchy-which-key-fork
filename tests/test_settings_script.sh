@@ -90,7 +90,12 @@ jq -e '.version == 2 and .delayMs == 250 and .enabledMasks == [64, 72] and .comp
   || fail "write should store the requested settings"
 
 OMARCHY_WHICH_KEY_SETTINGS="$target" "$helper" write 250 "64" false
-jq -e '.compact == false' "$target" >/dev/null || fail "write should store compact off"
+jq -e '.compact == false and .dimPercent == 70' "$target" >/dev/null || fail "write should store compact off"
+OMARCHY_WHICH_KEY_SETTINGS="$target" "$helper" write 250 "64" true 40
+jq -e '.dimPercent == 40' "$target" >/dev/null || fail "write should store the dim level"
+if OMARCHY_WHICH_KEY_SETTINGS="$target" "$helper" write 250 "64" true 150 2>/dev/null; then
+  fail "write should reject a dim level over 100"
+fi
 if OMARCHY_WHICH_KEY_SETTINGS="$target" "$helper" write 250 "64" maybe 2>/dev/null; then
   fail "write should reject a non-boolean compact"
 fi

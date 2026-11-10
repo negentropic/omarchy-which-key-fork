@@ -17,6 +17,9 @@ var VERSION_2_MASKS = [8, 9, 12, 13]
 // delay, so a quick Ctrl+C or Alt+Tab never flashes the guide.
 var NON_SUPER_MIN_DELAY_MS = 500
 
+// How strongly the display behind the guide is dimmed, in percent.
+var DEFAULT_DIM_PERCENT = 70
+
 function isSuperMask(mask) {
   return (Number(mask) & 64) !== 0
 }
@@ -55,7 +58,12 @@ function normalize(value) {
   }
   // Compact rows (1–0, ← → ↑ ↓, pairs) are on unless explicitly turned off.
   var compact = source.compact !== false
-  return { delayMs: delay, enabledMasks: enabled, compact: compact }
+
+  var dim = Number(source.dimPercent)
+  if (!isFinite(dim)) dim = DEFAULT_DIM_PERCENT
+  dim = Math.max(0, Math.min(90, Math.round(dim / 5) * 5))
+
+  return { delayMs: delay, enabledMasks: enabled, compact: compact, dimPercent: dim }
 }
 
 function toggleMask(masks, mask, enabled) {

@@ -303,6 +303,37 @@ BarWidget {
             onReleased: function(value) { config.setDelay(value) }
           }
 
+          RowLayout {
+            width: parent.width
+            Text {
+              textFormat: Text.PlainText
+              text: "Dim background"
+              color: root.foreground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.body
+              font.bold: true
+            }
+            Item { Layout.fillWidth: true }
+            Text {
+              textFormat: Text.PlainText
+              text: config.dimPercent === 0 ? "Off" : config.dimPercent + "%"
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.bodySmall
+            }
+          }
+
+          PanelSlider {
+            width: parent.width
+            bar: root.bar
+            minimum: 0
+            maximum: 90
+            step: 5
+            integer: true
+            value: config.dimPercent
+            onReleased: function(value) { config.setDim(value) }
+          }
+
           // Collapses 1..0, arrow keys and opposite pairs into single rows.
           CompactSettingToggle {
             width: parent.width

@@ -20,7 +20,7 @@ config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
 settings_path="${OMARCHY_WHICH_KEY_SETTINGS:-$config_home/omarchy/which-key.json}"
 
 usage() {
-  printf 'usage: which-key-settings read\n       which-key-settings write <delay-ms> <mask,...> [compact]\n' >&2
+  printf 'usage: which-key-settings read\n       which-key-settings write <delay-ms> <mask,...> [compact] [dim-percent]\n' >&2
   exit 2
 }
 
@@ -58,7 +58,18 @@ read_settings() {
 }
 
 write_settings() {
-  local delay="${1-}" masks="${2-}" compact="${3-true}"
+  local delay="${1-}" masks="${2-}" compact="${3-true}" dim="${4-70}"
+
+  case "$dim" in
+    "" | *[!0-9]*)
+      printf 'which-key: dim must be a percentage\n' >&2
+      return 2
+      ;;
+  esac
+  if [ "$dim" -gt 100 ]; then
+    printf 'which-key: dim must be a percentage\n' >&2
+    return 2
+  fi
 
   case "$compact" in
     true | false) ;;
@@ -89,11 +100,12 @@ write_settings() {
   staged="$(mktemp "$directory/.which-key.json.XXXXXX")"
   trap 'rm -f -- "$staged"' RETURN
 
-  jq -n --argjson delay "$delay" --arg masks "$masks" --argjson compact "$compact" '{
+  jq -n --argjson delay "$delay" --arg masks "$masks" --argjson compact "$compact" --argjson dim "$dim" '{
     version: 2,
     delayMs: $delay,
     enabledMasks: ($masks | if . == "" then [] else split(",") | map(tonumber) end),
-    compact: $compact
+    compact: $compact,
+    dimPercent: $dim
   }' >"$staged"
 
   chmod 0644 -- "$staged"
@@ -106,8 +118,8 @@ case "${1-}" in
     read_settings
     ;;
   write)
-    [ "$#" -eq 3 ] || [ "$#" -eq 4 ] || usage
-    write_settings "$2" "$3" "${4-true}"
+    [ "$#" -ge 3 ] && [ "$#" -le 5 ] || usage
+    write_settings "$2" "$3" "${4-true}" "${5-70}"
     ;;
   *)
     usage
