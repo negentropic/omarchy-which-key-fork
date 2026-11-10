@@ -261,10 +261,7 @@ Item {
       mask: Region {}
 
       WhichKeyCard {
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        anchors.rightMargin: Style.gapsOut
-        anchors.bottomMargin: Style.gapsOut
+        anchors.centerIn: parent
         viewModel: root.viewModel
         availableWidth: overlay.width - Style.gapsOut * 2
       }
