@@ -296,10 +296,17 @@ Item {
         color: Qt.rgba(0, 0, 0, config.dimPercent / 100)
       }
 
+      // The card keeps its natural layout and is scaled down as a whole when
+      // it would not fit the screen (a large layer, a small monitor or a big
+      // font), so no column or row is ever cut off.
       WhichKeyCard {
+        id: card
         anchors.centerIn: parent
         viewModel: root.viewModel
-        availableWidth: overlay.width - Style.gapsOut * 2
+        scale: card.width > 0 && card.height > 0
+          ? Math.min(1, (overlay.width - Style.gapsOut * 2) / card.width,
+                        (overlay.height - Style.gapsOut * 2) / card.height)
+          : 1
       }
     }
   }

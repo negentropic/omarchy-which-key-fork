@@ -7,7 +7,6 @@ BorderSurface {
   id: card
 
   required property var viewModel
-  required property real availableWidth
   readonly property var visibleRows: viewModel && viewModel.rows
     ? viewModel.rows : []
   readonly property var visibleColumns: viewModel && viewModel.columns
@@ -18,8 +17,7 @@ BorderSurface {
   readonly property int rowGap: Style.space(4)
   readonly property int keyWidth: Math.ceil(keyMetrics.advanceWidth)
 
-  width: Math.min(content.implicitWidth + borderLeft + pad * 2 + borderRight,
-                  availableWidth)
+  width: content.implicitWidth + borderLeft + pad * 2 + borderRight
   height: content.implicitHeight + borderTop + pad * 2 + borderBottom
   color: Color.popups.background
   borderSpec: Border.surfaceSpec("popups", "border", Color.popups.border,
