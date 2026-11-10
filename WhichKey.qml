@@ -260,6 +260,13 @@ Item {
       // held modifier and the next shortcut continue to reach the active app.
       mask: Region {}
 
+      // Dims the rest of the display behind the guide, using the same scrim
+      // as Omarchy's menus. The empty input mask above keeps it click-through.
+      Rectangle {
+        anchors.fill: parent
+        color: Color.menu.scrim
+      }
+
       WhichKeyCard {
         anchors.centerIn: parent
         viewModel: root.viewModel
